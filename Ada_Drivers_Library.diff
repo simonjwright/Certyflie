@@ -1,0 +1,35 @@
+diff --git a/arch/ARM/STM32/devices/stm32f40x/stm32-device.adb b/arch/ARM/STM32/devices/stm32f40x/stm32-device.adb
+index 71e3f11c..f56c0966 100644
+--- a/arch/ARM/STM32/devices/stm32f40x/stm32-device.adb
++++ b/arch/ARM/STM32/devices/stm32f40x/stm32-device.adb
+@@ -31,14 +31,14 @@
+ 
+ with System; use System;
+ pragma Warnings (Off, "* is an internal GNAT unit");
+-with System.BB.Parameters;
++--  with System.BB.Parameters;
+ pragma Warnings (On, "* is an internal GNAT unit");
+ 
+ with STM32_SVD.RCC; use STM32_SVD.RCC;
+ 
+ package body STM32.Device is
+ 
+-   HSE_VALUE : constant := System.BB.Parameters.HSE_Clock;
++   HSE_VALUE : constant := 8_000_000; -- System.BB.Parameters.HSE_Clock;
+    --  External oscillator in Hz
+ 
+    HSI_VALUE : constant := 16_000_000;
+diff --git a/boards/config.gpr b/boards/config.gpr
+index c041a783..01557175 100644
+--- a/boards/config.gpr
++++ b/boards/config.gpr
+@@ -20,7 +20,8 @@ abstract project Config is
+       when "riscv32-unknown-elf" =>
+          null;
+       when others =>
+-         Callgraph_Switch := ("-fcallgraph-info=su");
++         null;
++         -- Callgraph_Switch := ("-fcallgraph-info=su");
+    end case;
+ 
+ 
