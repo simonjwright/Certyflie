@@ -130,9 +130,9 @@ package body Crazyflie_System is
    -- Last_Chance_Handler --
    -------------------------
 
-   procedure Last_Chance_Handler (Error : Exception_Occurrence)
+   procedure Last_Chance_Handler (Message : System.Address; Line : Integer)
    is
-      pragma Unreferenced (Error);
+      pragma Unreferenced (Message, Line);
    begin
       Motors_Reset;
       Reset_All_LEDs;

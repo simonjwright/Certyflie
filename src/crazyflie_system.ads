@@ -29,7 +29,7 @@
 
 --  Package initializing all the modules of the Crazyflie
 
-with Ada.Exceptions; use Ada.Exceptions;
+with System;
 
 package Crazyflie_System is
 
@@ -54,7 +54,7 @@ private
    --  Procedures and function
 
    --  Global exception handler
-   procedure Last_Chance_Handler (Error : Exception_Occurrence);
+   procedure Last_Chance_Handler (Message : System.Address; Line : Integer);
    pragma Export (C, Last_Chance_Handler, "__gnat_last_chance_handler");
    pragma No_Return (Last_Chance_Handler);
 

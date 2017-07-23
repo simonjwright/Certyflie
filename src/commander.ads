@@ -87,7 +87,7 @@ is
    --  Get the thrust from the pilot.
    procedure Commander_Get_Thrust (Thrust : out T_Uint16)
      with
-       Global => (Input  => Clock_Time,
+       Global => (Input  => null, -- Clock_Time,
                   In_Out => (CRTP_State,
                              Commander_State));
 
@@ -100,7 +100,7 @@ is
    --  Cut the trust when inactivity time has been during for too long.
    procedure Commander_Watchdog
      with
-       Global => (Input  => Clock_Time,
+       Global => (Input  => null, -- Clock_Time,
                   In_Out => (CRTP_State,
                              Commander_State));
 
