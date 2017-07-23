@@ -52,7 +52,7 @@ is
    --  accelerometer data.
    procedure FF_Check_Event (Acc : Accelerometer_Data)
      with
-       Global => (Input  => Clock_Time,
+       Global => (Input  => null, -- Clock_Time,
                   In_Out => FF_State);
 
    --  Override the previous commands if in recovery mode.
@@ -130,9 +130,9 @@ private
      with Part_Of => FF_State;
    Recovery_Thrust          : T_Uint16 := MAX_RECOVERY_THRUST
      with Part_Of => FF_State;
-   Last_Landing_Time        : Time := Time_First
+   Last_Landing_Time        : Time := Clock
      with Part_Of => FF_State;
-   Last_FF_Detected_Time    : Time := Time_First
+   Last_FF_Detected_Time    : Time := Clock
      with Part_Of => FF_State;
    Landing_Data_Collector   : FF_Acc_Data_Collector
      with Part_Of => FF_State;
