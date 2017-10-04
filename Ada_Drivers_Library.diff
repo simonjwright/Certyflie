@@ -1,5 +1,5 @@
 diff --git a/arch/ARM/STM32/devices/stm32f40x/stm32-device.adb b/arch/ARM/STM32/devices/stm32f40x/stm32-device.adb
-index 71e3f11c..f56c0966 100644
+index 1423b91e..5f796fb0 100644
 --- a/arch/ARM/STM32/devices/stm32f40x/stm32-device.adb
 +++ b/arch/ARM/STM32/devices/stm32f40x/stm32-device.adb
 @@ -31,14 +31,14 @@
@@ -19,6 +19,218 @@ index 71e3f11c..f56c0966 100644
     --  External oscillator in Hz
  
     HSI_VALUE : constant := 16_000_000;
+diff --git a/arch/ARM/STM32/devices/stm32f40x/stm32-device.ads b/arch/ARM/STM32/devices/stm32f40x/stm32-device.ads
+index d88aa278..8f95bcb6 100644
+--- a/arch/ARM/STM32/devices/stm32f40x/stm32-device.ads
++++ b/arch/ARM/STM32/devices/stm32f40x/stm32-device.ads
+@@ -46,7 +46,7 @@ with STM32_SVD;            use STM32_SVD;
+ with STM32_SVD.SDIO;
+ 
+ with STM32.DMA;            use STM32.DMA;
+-with STM32.DMA.Interrupts; use STM32.DMA.Interrupts;
++--  with STM32.DMA.Interrupts; use STM32.DMA.Interrupts;
+ with STM32.GPIO;           use STM32.GPIO;
+ with STM32.ADC;            use STM32.ADC;
+ with STM32.USARTs;         use STM32.USARTs;
+@@ -61,7 +61,7 @@ with STM32.RTC;            use STM32.RTC;
+ with STM32.CRC;            use STM32.CRC;
+ with STM32.SDMMC;          use STM32.SDMMC;
+ 
+-with Ada.Interrupts.Names;
++--  with Ada.Interrupts.Names;
+ 
+ package STM32.Device is
+    pragma Elaborate_Body;
+@@ -337,39 +337,39 @@ package STM32.Device is
+    procedure Enable_Clock (This : aliased in out DMA_Controller);
+    procedure Reset (This : aliased in out DMA_Controller);
+ 
+-   DMA1_Stream0 : aliased DMA_Interrupt_Controller
+-     (DMA_1'Access, Stream_0, Ada.Interrupts.Names.DMA1_Stream0_Interrupt);
+-   DMA1_Stream1 : aliased DMA_Interrupt_Controller
+-     (DMA_1'Access, Stream_1, Ada.Interrupts.Names.DMA1_Stream1_Interrupt);
+-   DMA1_Stream2 : aliased DMA_Interrupt_Controller
+-     (DMA_1'Access, Stream_2, Ada.Interrupts.Names.DMA1_Stream2_Interrupt);
+-   DMA1_Stream3 : aliased DMA_Interrupt_Controller
+-     (DMA_1'Access, Stream_3, Ada.Interrupts.Names.DMA1_Stream3_Interrupt);
+-   DMA1_Stream4 : aliased DMA_Interrupt_Controller
+-     (DMA_1'Access, Stream_4, Ada.Interrupts.Names.DMA1_Stream4_Interrupt);
+-   DMA1_Stream5 : aliased DMA_Interrupt_Controller
+-     (DMA_1'Access, Stream_5, Ada.Interrupts.Names.DMA1_Stream5_Interrupt);
+-   DMA1_Stream6 : aliased DMA_Interrupt_Controller
+-     (DMA_1'Access, Stream_6, Ada.Interrupts.Names.DMA1_Stream6_Interrupt);
+-   DMA1_Stream7 : aliased DMA_Interrupt_Controller
+-     (DMA_1'Access, Stream_7, Ada.Interrupts.Names.DMA1_Stream7_Interrupt);
+-
+-   DMA2_Stream0 : aliased DMA_Interrupt_Controller
+-     (DMA_2'Access, Stream_0, Ada.Interrupts.Names.DMA2_Stream0_Interrupt);
+-   DMA2_Stream1 : aliased DMA_Interrupt_Controller
+-     (DMA_2'Access, Stream_1, Ada.Interrupts.Names.DMA2_Stream1_Interrupt);
+-   DMA2_Stream2 : aliased DMA_Interrupt_Controller
+-     (DMA_2'Access, Stream_2, Ada.Interrupts.Names.DMA2_Stream2_Interrupt);
+-   DMA2_Stream3 : aliased DMA_Interrupt_Controller
+-     (DMA_2'Access, Stream_3, Ada.Interrupts.Names.DMA2_Stream3_Interrupt);
+-   DMA2_Stream4 : aliased DMA_Interrupt_Controller
+-     (DMA_2'Access, Stream_4, Ada.Interrupts.Names.DMA2_Stream4_Interrupt);
+-   DMA2_Stream5 : aliased DMA_Interrupt_Controller
+-     (DMA_2'Access, Stream_5, Ada.Interrupts.Names.DMA2_Stream5_Interrupt);
+-   DMA2_Stream6 : aliased DMA_Interrupt_Controller
+-     (DMA_2'Access, Stream_6, Ada.Interrupts.Names.DMA2_Stream6_Interrupt);
+-   DMA2_Stream7 : aliased DMA_Interrupt_Controller
+-     (DMA_2'Access, Stream_7, Ada.Interrupts.Names.DMA2_Stream7_Interrupt);
++   --  DMA1_Stream0 : aliased DMA_Interrupt_Controller
++   --    (DMA_1'Access, Stream_0, Ada.Interrupts.Names.DMA1_Stream0_Interrupt);
++   --  DMA1_Stream1 : aliased DMA_Interrupt_Controller
++   --    (DMA_1'Access, Stream_1, Ada.Interrupts.Names.DMA1_Stream1_Interrupt);
++   --  DMA1_Stream2 : aliased DMA_Interrupt_Controller
++   --    (DMA_1'Access, Stream_2, Ada.Interrupts.Names.DMA1_Stream2_Interrupt);
++   --  DMA1_Stream3 : aliased DMA_Interrupt_Controller
++   --    (DMA_1'Access, Stream_3, Ada.Interrupts.Names.DMA1_Stream3_Interrupt);
++   --  DMA1_Stream4 : aliased DMA_Interrupt_Controller
++   --    (DMA_1'Access, Stream_4, Ada.Interrupts.Names.DMA1_Stream4_Interrupt);
++   --  DMA1_Stream5 : aliased DMA_Interrupt_Controller
++   --    (DMA_1'Access, Stream_5, Ada.Interrupts.Names.DMA1_Stream5_Interrupt);
++   --  DMA1_Stream6 : aliased DMA_Interrupt_Controller
++   --    (DMA_1'Access, Stream_6, Ada.Interrupts.Names.DMA1_Stream6_Interrupt);
++   --  DMA1_Stream7 : aliased DMA_Interrupt_Controller
++   --    (DMA_1'Access, Stream_7, Ada.Interrupts.Names.DMA1_Stream7_Interrupt);
++
++   --  DMA2_Stream0 : aliased DMA_Interrupt_Controller
++   --    (DMA_2'Access, Stream_0, Ada.Interrupts.Names.DMA2_Stream0_Interrupt);
++   --  DMA2_Stream1 : aliased DMA_Interrupt_Controller
++   --    (DMA_2'Access, Stream_1, Ada.Interrupts.Names.DMA2_Stream1_Interrupt);
++   --  DMA2_Stream2 : aliased DMA_Interrupt_Controller
++   --    (DMA_2'Access, Stream_2, Ada.Interrupts.Names.DMA2_Stream2_Interrupt);
++   --  DMA2_Stream3 : aliased DMA_Interrupt_Controller
++   --    (DMA_2'Access, Stream_3, Ada.Interrupts.Names.DMA2_Stream3_Interrupt);
++   --  DMA2_Stream4 : aliased DMA_Interrupt_Controller
++   --    (DMA_2'Access, Stream_4, Ada.Interrupts.Names.DMA2_Stream4_Interrupt);
++   --  DMA2_Stream5 : aliased DMA_Interrupt_Controller
++   --    (DMA_2'Access, Stream_5, Ada.Interrupts.Names.DMA2_Stream5_Interrupt);
++   --  DMA2_Stream6 : aliased DMA_Interrupt_Controller
++   --    (DMA_2'Access, Stream_6, Ada.Interrupts.Names.DMA2_Stream6_Interrupt);
++   --  DMA2_Stream7 : aliased DMA_Interrupt_Controller
++   --    (DMA_2'Access, Stream_7, Ada.Interrupts.Names.DMA2_Stream7_Interrupt);
+ 
+    Internal_I2C_Port_1 : aliased Internal_I2C_Port with Import, Volatile, Address => I2C1_Base;
+    Internal_I2C_Port_2 : aliased Internal_I2C_Port with Import, Volatile, Address => I2C2_Base;
+diff --git a/arch/ARM/STM32/drivers/dma_interrupts/stm32-dma-interrupts.adb b/arch/ARM/STM32/drivers/dma_interrupts/stm32-dma-interrupts.adb
+index 784c0908..3a2e0b61 100644
+--- a/arch/ARM/STM32/drivers/dma_interrupts/stm32-dma-interrupts.adb
++++ b/arch/ARM/STM32/drivers/dma_interrupts/stm32-dma-interrupts.adb
+@@ -31,15 +31,24 @@
+ 
+ package body STM32.DMA.Interrupts is
+ 
++   Corresponding_Interrupt : constant array (DMA_Status_Flag) of DMA_Interrupt
++     := (FIFO_Error_Indicated             => FIFO_Error_Interrupt,
++         Direct_Mode_Error_Indicated      => Direct_Mode_Error_Interrupt,
++         Transfer_Error_Indicated         => Transfer_Error_Interrupt,
++         Half_Transfer_Complete_Indicated => Half_Transfer_Complete_Interrupt,
++         Transfer_Complete_Indicated      => Transfer_Complete_Interrupt);
++
+    protected body DMA_Interrupt_Controller is
+ 
+       --------------------
+       -- Start_Transfer --
+       --------------------
+ 
+-      procedure Start_Transfer (Source      : Address;
+-                                Destination : Address;
+-                                Data_Count  : UInt16)
++      procedure Start_Transfer
++        (Source             : Address;
++         Destination        : Address;
++         Data_Count         : UInt16;
++         Enabled_Interrupts : Interrupt_Selections := (others => True))
+       is
+       begin
+          No_Transfer_In_Progess := False;
+@@ -47,11 +56,13 @@ package body STM32.DMA.Interrupts is
+ 
+          Clear_All_Status (Controller.all, Stream);
+ 
+-         Start_Transfer_with_Interrupts (This               => Controller.all,
+-                                         Stream             => Stream,
+-                                         Source             => Source,
+-                                         Destination        => Destination,
+-                                         Data_Count         => Data_Count);
++         Start_Transfer_with_Interrupts
++           (This               => Controller.all,
++            Stream             => Stream,
++            Source             => Source,
++            Destination        => Destination,
++            Data_Count         => Data_Count,
++            Enabled_Interrupts => Enabled_Interrupts);
+       end Start_Transfer;
+ 
+       --------------------
+@@ -104,7 +115,11 @@ package body STM32.DMA.Interrupts is
+       procedure Interrupt_Handler is
+       begin
+          for Flag in DMA_Status_Flag loop
+-            if Status (Controller.all, Stream, Flag) then
++            if Interrupt_Enabled (Controller.all,
++                                  Stream,
++                                  Corresponding_Interrupt (Flag))
++              and then Status (Controller.all, Stream, Flag)
++            then
+                case Flag is
+                   when FIFO_Error_Indicated =>
+                      Last_Status := DMA_FIFO_Error;
+diff --git a/arch/ARM/STM32/drivers/dma_interrupts/stm32-dma-interrupts.ads b/arch/ARM/STM32/drivers/dma_interrupts/stm32-dma-interrupts.ads
+index 7198544f..b5f044b9 100644
+--- a/arch/ARM/STM32/drivers/dma_interrupts/stm32-dma-interrupts.ads
++++ b/arch/ARM/STM32/drivers/dma_interrupts/stm32-dma-interrupts.ads
+@@ -30,18 +30,23 @@
+ ------------------------------------------------------------------------------
+ 
+ with Ada.Interrupts;
++with System;
+ 
+ package STM32.DMA.Interrupts is
+ 
+    protected type DMA_Interrupt_Controller
+      (Controller : not null access DMA_Controller;
+       Stream     : DMA_Stream_Selector;
+-      ID         : Ada.Interrupts.Interrupt_ID)
++      ID         : Ada.Interrupts.Interrupt_ID;
++      Priority   : System.Interrupt_Priority)
+    is
++      pragma Interrupt_Priority (Priority);
+ 
+-      procedure Start_Transfer (Source      : Address;
+-                                Destination : Address;
+-                                Data_Count  : UInt16);
++      procedure Start_Transfer
++        (Source             : Address;
++         Destination        : Address;
++         Data_Count         : UInt16;
++         Enabled_Interrupts : Interrupt_Selections := (others => True));
+ 
+       procedure Abort_Transfer (Result : out DMA_Error_Code);
+ 
+diff --git a/arch/ARM/STM32/drivers/sd/stm32-sdmmc_interrupt.ads b/arch/ARM/STM32/drivers/sd/stm32-sdmmc_interrupt.ads
+index 25183281..27169823 100644
+--- a/arch/ARM/STM32/drivers/sd/stm32-sdmmc_interrupt.ads
++++ b/arch/ARM/STM32/drivers/sd/stm32-sdmmc_interrupt.ads
+@@ -34,6 +34,7 @@
+ 
+ with HAL.SDMMC;           use HAL.SDMMC;
+ with Ada.Interrupts;
++with System;
+ 
+ limited with STM32.SDMMC;
+ 
+@@ -46,7 +47,7 @@ package STM32.SDMMC_Interrupt is
+    protected type SDMMC_Interrupt_Handler
+      (Interrupt_ID : Ada.Interrupts.Interrupt_ID)
+    is
+-      pragma Interrupt_Priority (250);
++      pragma Interrupt_Priority (System.Interrupt_Priority'Last - 5);
+ 
+       procedure Set_Transfer_State (This : in out STM32.SDMMC.SDMMC_Controller);
+       procedure Clear_Transfer_State;
 diff --git a/boards/config.gpr b/boards/config.gpr
 index c041a783..01557175 100644
 --- a/boards/config.gpr
