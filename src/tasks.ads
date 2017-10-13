@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Certyflie                                   --
 --                                                                          --
---                     Copyright (C) 2015-2016, AdaCore                     --
+--                     Copyright (C) 2017, AdaCore                          --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -27,60 +27,16 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Config;    use Config;
-with Radiolink; use Radiolink;
+with Config;           use Config;
+with CRTP;             use CRTP;
+with Power_Management; use Power_Management;
+with Syslink;          use Syslink;
 
-package body Link_Interface is
+package Tasks is
 
-   ---------------
-   -- Link_Init --
-   ---------------
+   CRTP_Rx_Task          : CRTP_Rx_Task_Type (CRTP_RXTX_TASK_PRIORITY);
+   CRTP_Tx_Task          : CRTP_Tx_Task_Type (CRTP_RXTX_TASK_PRIORITY);
+   Syslink_Task          : Syslink_Task_Type (SYSLINK_TASK_PRIORITY);
+   Power_Management_Task : Power_Management_Task_Type (PM_TASK_PRIORITY);
 
-   procedure Link_Init is
-   begin
-      if Is_Init then
-         return;
-      end if;
-
-      case LINK_LAYER_TYPE is
-         when RADIO_LINK =>
-            Radiolink_Init;
-         when others =>
-            --  Other link layers not implemented yet.
-            null;
-      end case;
-
-      Is_Init := True;
-   end Link_Init;
-
-   ----------------------
-   -- Link_Send_Packet --
-   ----------------------
-
-   function Link_Send_Packet (Packet : CRTP_Packet) return Boolean is
-   begin
-      case LINK_LAYER_TYPE is
-         when RADIO_LINK =>
-            return Radiolink_Send_Packet (Packet);
-         when others =>
-            --  Other link layers not implemented yet.
-            return False;
-      end case;
-   end Link_Send_Packet;
-
-   ----------------------------------
-   -- Link_Receive_Packet_Blocking --
-   ----------------------------------
-
-   procedure Link_Receive_Packet_Blocking (Packet : out CRTP_Packet) is
-   begin
-      case LINK_LAYER_TYPE is
-         when RADIO_LINK =>
-            Radiolink_Receive_Packet_Blocking (Packet);
-         when others =>
-            --  Other link layers not implemented yet.
-            null;
-      end case;
-   end Link_Receive_Packet_Blocking;
-
-end Link_Interface;
+end Tasks;

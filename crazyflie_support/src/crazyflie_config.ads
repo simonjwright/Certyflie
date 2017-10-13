@@ -33,50 +33,13 @@ with System;
 with Types;         use Types;
 with MPU9250;       use MPU9250;
 
-package Config is
+package Crazyflie_Config is
 
-   --  Constants used to configure the drone firmware.
-   --  See src/config/config.h.
-
-   --  Crazyflie 2.0 has an STM32F4 board
-   STM32F4XX : constant Boolean := True;
-   QUAD_FORMATION_X : constant Boolean := True;
-   CPU_CLOCK_HZ : constant T_Uint32 := 168000000;
-   TICK_RATE_HZ : constant T_Uint16 := 1000;
-   TICK_RATE_MS : constant T_Uint16 := 1000 / TICK_RATE_HZ;
-
-   --  Task priorities
-   MAIN_TASK_PRIORITY      : constant System.Priority := 4;
-   CRTP_RXTX_TASK_PRIORITY : constant System.Priority := 2;
-   SYSLINK_TASK_PRIORITY   : constant System.Priority := 3;
-   LOG_TASK_PRIORITY       : constant System.Priority := 1;
-   PM_TASK_PRIORITY        : constant System.Priority := 0;
-
-   --  Interrupt priorities (see drivers/src/nvicconf.h)
-   LOW_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
-     := System.Interrupt_Priority'First + 2;
-   MID_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
-     := System.Interrupt_Priority'First + 5;
-   HIGH_INTERRUPT_PRIORITY    : constant System.Interrupt_Priority
-     := System.Interrupt_Priority'First + 8;
-   TOP_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
-     := System.Interrupt_Priority'Last;
-
-   DMA_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
-     := HIGH_INTERRUPT_PRIORITY;
-   DMA_FLOW_CONTROL_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
-     := TOP_INTERRUPT_PRIORITY;
-   SYSLINK_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
-     := TOP_INTERRUPT_PRIORITY;
+   --  Constants used to configure the Crazyflie support
 
    --  Link layers implemented to communicate via the CRTP protocol
    type Link_Layer is (RADIO_LINK, USB_LINK, ESKY_LINK);
    LINK_LAYER_TYPE : constant Link_Layer := RADIO_LINK;
-
-   PORT_MAX_DELAY : constant T_Uint16 := T_Uint16'Last;
-
-   PORT_MAX_DELAY_TIME_MS : constant Time_Span
-     := Milliseconds (Integer (PORT_MAX_DELAY / TICK_RATE_MS));
 
    --  Radio configuration
    RADIO_CHANNEL       : constant := 80;
@@ -94,4 +57,4 @@ package Config is
    IMU_ACCEL_FS_CONFIG : constant MPU9250_FS_Accel_Range
      := MPU9250_Accel_FS_8;
 
-end Config;
+end Crazyflie_Config;
