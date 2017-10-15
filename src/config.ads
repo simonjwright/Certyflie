@@ -40,21 +40,4 @@ package Config is
    LOG_TASK_PRIORITY       : constant System.Priority := 1;
    PM_TASK_PRIORITY        : constant System.Priority := 0;
 
-   --  Interrupt priorities (see drivers/src/nvicconf.h)
-   LOW_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
-     := System.Interrupt_Priority'First + 2;
-   MID_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
-     := System.Interrupt_Priority'First + 5;
-   HIGH_INTERRUPT_PRIORITY    : constant System.Interrupt_Priority
-     := System.Interrupt_Priority'First + 8;
-   TOP_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
-     := System.Interrupt_Priority'Last;
-
-   DMA_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
-     := HIGH_INTERRUPT_PRIORITY;
-   DMA_FLOW_CONTROL_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
-     := TOP_INTERRUPT_PRIORITY;
-   SYSLINK_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
-     := TOP_INTERRUPT_PRIORITY;
-
 end Config;

@@ -37,6 +37,23 @@ package Crazyflie_Config is
 
    --  Constants used to configure the Crazyflie support
 
+   --  Interrupt priorities (see drivers/src/nvicconf.h)
+   LOW_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
+     := System.Interrupt_Priority'First + 2;
+   MID_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
+     := System.Interrupt_Priority'First + 5;
+   HIGH_INTERRUPT_PRIORITY    : constant System.Interrupt_Priority
+     := System.Interrupt_Priority'First + 8;
+   TOP_INTERRUPT_PRIORITY     : constant System.Interrupt_Priority
+     := System.Interrupt_Priority'Last;
+
+   DMA_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
+     := HIGH_INTERRUPT_PRIORITY;
+   DMA_FLOW_CONTROL_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
+     := TOP_INTERRUPT_PRIORITY;
+   SYSLINK_INTERRUPT_PRIORITY : constant System.Interrupt_Priority
+     := TOP_INTERRUPT_PRIORITY;
+
    --  Link layers implemented to communicate via the CRTP protocol
    type Link_Layer is (RADIO_LINK, USB_LINK, ESKY_LINK);
    LINK_LAYER_TYPE : constant Link_Layer := RADIO_LINK;
