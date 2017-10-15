@@ -1,13 +1,6 @@
-with "Ada_Drivers_Library/boards/crazyflie/../config";
-with "Ada_Drivers_Library/boards/crazyflie/../../arch/ARM/STM32/stm32f40x";
-with "Ada_Drivers_Library/boards/crazyflie/../../components/components";
-with "Ada_Drivers_Library/boards/crazyflie/../../middleware/middleware";
-with "Ada_Drivers_Library/boards/crazyflie/../../middleware/ravenscar_support";
+with "crazyflie_support";
 
 project Crazyflie is
-
-   for Target use "arm-eabi";
-   for Runtime ("ada") use external ("HOME") & "/cortex-gnat-rts/stm32f4";
 
    type SENSOR_FUSION_TYPE is ("Mahony", "Madgwick");
    SensorFusion : SENSOR_FUSION_TYPE := external ("SENSOR_FUSION", "Mahony");
@@ -18,34 +11,31 @@ project Crazyflie is
 
    for Languages use ("Ada");
    for Main use ("main.adb");
-   for Source_Dirs use
-     ("init", "config", "types", "utils", "drivers", "lib", "hal", "modules");
-   for Source_Dirs use project'Source_Dirs
-     & "Ada_Drivers_Library/boards/crazyflie/src";
+   for Source_Dirs use ("src");
 
    case SensorFusion is
       when "Mahony" =>
-         for Source_Dirs use Project'Source_Dirs & ("modules/mahony");
+         for Source_Dirs use Project'Source_Dirs & ("src/mahony");
       when "Madgwick" =>
-         for Source_Dirs use Project'Source_Dirs & ("modules/madgwick");
+         for Source_Dirs use Project'Source_Dirs & ("src/madgwick");
    end case;
 
    for Object_Dir use "obj";
    for Exec_Dir use ".";
-
    for Create_Missing_Dirs use "True";
 
+   for Target use "arm-eabi";
+   for Runtime ("ada") use external ("HOME") & "/cortex-gnat-rts/stm32f4";
+
    package Compiler is
-      for Default_Switches ("ada") use ("-gnatQ", "-gnatyg");
+      for Local_Configuration_Pragmas use "gnat_local.adc";
       case Build is
          when "Debug" =>
             for Default_Switches ("ada") use
-              Compiler'Default_Switches ("ada")
-              & ("-O0", "-gnata", "-gnatwa", "-g");
+              ("-gnatQ", "-gnatyg", "-O0", "-gnata", "-gnatwae", "-g");
          when "Production" =>
             for Default_Switches ("ada") use
-              Compiler'Default_Switches ("ada")
-              & ("-O2", "-gnatn");
+              ("-gnatQ", "-gnatyg", "-O2", "-gnatn");
       end case;
       for Default_Switches ("ada") use
         Compiler'Default_Switches ("ada") & "-gnatw.X"; -- after -gnatwa
