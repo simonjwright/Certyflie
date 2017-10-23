@@ -31,14 +31,13 @@ project Crazyflie is
       for Local_Configuration_Pragmas use "gnat_local.adc";
       case Build is
          when "Debug" =>
-            for Default_Switches ("ada") use
-              ("-gnatQ", "-gnatyg", "-O0", "-gnata", "-gnatwae", "-g");
+            for Default_Switches ("ada") use ("-O0");
          when "Production" =>
-            for Default_Switches ("ada") use
-              ("-gnatQ", "-gnatyg", "-O2", "-gnatn");
+            for Default_Switches ("ada") use ("-O2"); -- , "-gnatn");
       end case;
       for Default_Switches ("ada") use
-        Compiler'Default_Switches ("ada") & "-gnatw.X"; -- after -gnatwa
+        Compiler'Default_Switches ("ada")
+        & ("-gnatQ", "-gnatyg", "-gnata", "-gnatwa", "-gnatw.X");
    end Compiler;
 
    package Builder is
@@ -46,6 +45,7 @@ project Crazyflie is
       for Executable ("main.adb") use project'Project_Dir & "cflie.elf";
       for Default_Switches ("Ada") use
         ("-s",
+         "-g",
          "--create-map-file=" & project'Project_Dir & "cflie.map");
    end Builder;
 
