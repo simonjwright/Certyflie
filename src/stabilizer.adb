@@ -27,8 +27,8 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Config;           use Config;
-with Safety;           use Safety;
+with Config; use Config;
+with Safety; use Safety;
 with Log;
 
 package body Stabilizer
