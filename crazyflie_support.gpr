@@ -35,7 +35,8 @@ library project Crazyflie_Support is
       end case;
       for Default_Switches ("ada") use
         Compiler'Default_Switches ("ada")
-        & ("-gnatQ", "-gnatyg", "-gnata", "-gnatwa", "-gnatw.X");
+        & ("-gnatQ", "-gnatyg", "-gnata", "-gnatwa", "-gnatw.X")
+        & ("-ffunction-sections", "-fdata-sections");
    end Compiler;
 
 end Crazyflie_Support;
