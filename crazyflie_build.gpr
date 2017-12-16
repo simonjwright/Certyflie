@@ -1,0 +1,74 @@
+with "crazyflie_support";
+
+project Crazyflie_Build is
+
+   type SENSOR_FUSION_TYPE is ("Mahony", "Madgwick");
+   SensorFusion : SENSOR_FUSION_TYPE := external ("SENSOR_FUSION", "Mahony");
+
+   type BUILD_TYPE is
+      ("Debug", "Production");
+   Build : BUILD_Type := external ("BUILD", "Debug");
+
+   for Languages use ("Ada");
+   for Main use ("main.adb");
+   for Source_Dirs use ("src");
+
+   case SensorFusion is
+      when "Mahony" =>
+         for Source_Dirs use Project'Source_Dirs & ("src/mahony");
+      when "Madgwick" =>
+         for Source_Dirs use Project'Source_Dirs & ("src/madgwick");
+   end case;
+
+   for Object_Dir use "obj";
+   for Exec_Dir use ".";
+   for Create_Missing_Dirs use "True";
+
+   for Target use "arm-eabi";
+   for Runtime ("ada") use external ("HOME") & "/cortex-gnat-rts/stm32f4";
+
+   package Compiler is
+      for Local_Configuration_Pragmas use "gnat_local.adc";
+      case Build is
+         when "Debug" =>
+            for Default_Switches ("ada") use ("-O0");
+         when "Production" =>
+            for Default_Switches ("ada") use ("-O2"); -- , "-gnatn");
+      end case;
+      for Default_Switches ("ada") use
+        Compiler'Default_Switches ("ada")
+        & ("-gnatQ", "-gnatyg", "-gnata", "-gnatwa", "-gnatw.X")
+        & ("-ffunction-sections", "-fdata-sections");
+   end Compiler;
+
+   package Builder is
+      for Global_Configuration_Pragmas use "gnat.adc";
+      for Executable ("main.adb") use project'Project_Dir & "cflie.elf";
+      for Default_Switches ("Ada") use
+        ("-s",
+         "-g",
+         "--create-map-file=" & project'Project_Dir & "cflie.map");
+   end Builder;
+
+   package Linker is
+      --  This causes the crazyflie executable to load above the
+      --  normal STM32F4 start address; the bootloader sits at the
+      --  beginning of flash memory and either loads a new crazyflie
+      --  executable over the radio or executes an existing one.
+      --  See https://wiki.bitcraze.io/doc:crazyflie:bootloader:protocol
+      for Default_Switches ("Ada") use
+        ("-Wl,--defsym,START_OFFSET=0x4000")
+        & ("-Wl,-gc-sections");
+   end Linker;
+
+   package Ide is
+      for Program_Host use "localhost:4242";
+      for Communication_Protocol use "remote";
+      for Connection_Tool use "st-util";
+
+      for Debugger_Command use "arm-eabi-gdb";
+      for Gnatlist use "arm-eabi-gnatls";
+      for Gnat use "arm-eabi-gnat";
+   end Ide;
+
+end Crazyflie_Build;
