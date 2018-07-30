@@ -41,6 +41,31 @@ pragma Unreferenced (Tasks);
 
 procedure Main is
    pragma Priority (MAIN_TASK_PRIORITY);
+
+   --  Override the default task stack sizes used by Cortex GNAT RTS,
+   --  which aren't enough for the Certyflie code.
+
+   --  For the environment task.
+   Environment_Task_Storage_Size : constant Natural := 3072
+   with
+     Export,
+     Convention => Ada,
+     External_Name => "_environment_task_storage_size";
+
+   --  For ordinary tasks.
+   Default_Storage_Size : constant Natural := 4096
+   with
+     Export,
+     Convention => Ada,
+     External_Name => "_default_storage_size";
+
+   --  For the initial stack (also used for interrupt programs).
+   --  Default_Initial_Stack : constant Natural := 1024
+   --  with
+   --    Export,
+   --    Convention => Ada,
+   --    External_Name => "_default_initial_stack";
+
    Self_Test_Passed : Boolean;
 begin
    --  System initialization

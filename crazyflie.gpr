@@ -5,16 +5,12 @@
 aggregate project Crazyflie is
 
    for Target use "arm-eabi";
-   for Runtime ("ada") use external ("HOME") & "/cortex-gnat-rts/stm32f4";
-
-   Ada_Drivers_Library :=
-     external ("ADA_DRIVERS_LIBRARY",
-               external ("HOME") & "/adacore/Ada_Drivers_Library");
+   -- for Runtime ("ada") use "ravenscar-full-stm32f4";
+   for Runtime ("ada") use external ("HOME") & "/cortex-gnat-rts/local/stm32f4";
 
    Platform_Build := external ("PLATFORM_BUILD", "Production");
    for external ("PLATFORM_BUILD") use Platform_Build;
 
-   for Project_Path use (Ada_Drivers_Library);
    for Project_Files use ("crazyflie_build.gpr");
 
 end Crazyflie;

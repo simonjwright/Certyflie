@@ -1,15 +1,7 @@
 --  This is used in the Simon Wright <simon@pushface.org> version,
 --  to enable building with cortex-gnat-rts.
 
---  Expects the project path to pick up the internal submodule
---  Ada_Drivers_Library (default) or a clone. External
---  ADA_DRIVERS_LIBRARY is used.
-
-with "boards/crazyflie/../config";
-with "boards/crazyflie/../../arch/ARM/STM32/stm32f40x";
-with "boards/crazyflie/../../components/components";
-with "boards/crazyflie/../../middleware/middleware";
-with "boards/crazyflie/../../middleware/ravenscar_support";
+with "crazyflie_support/Ada_Drivers_Library/ada_drivers_library";
 
 library project Crazyflie_Support is
 
@@ -22,11 +14,7 @@ library project Crazyflie_Support is
    for Library_Dir use "crazyflie_support/lib";
    for Object_Dir use "crazyflie_support/obj";
 
-   Ada_Drivers_Library := external ("ADA_DRIVERS_LIBRARY",
-                                    "Ada_Drivers_Library");
-
-   for Source_Dirs use ("crazyflie_support/src",
-                        Ada_Drivers_Library & "/boards/crazyflie/src");
+   for Source_Dirs use ("crazyflie_support/src");
 
    package Builder is
       for Switches ("Ada") use ("-s");
