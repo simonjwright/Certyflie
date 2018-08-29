@@ -42,11 +42,13 @@ package body Parameter is
    type Parameter_Channel is
      (PARAM_TOC_CH,
       PARAM_READ_CH,
-      PARAM_WRITE_CH);
+      PARAM_WRITE_CH,
+      PARAM_MISC_CH);
    for Parameter_Channel use
      (PARAM_TOC_CH   => 0,
       PARAM_READ_CH  => 1,
-      PARAM_WRITE_CH => 2);
+      PARAM_WRITE_CH => 2,
+      PARAM_MISC_CH  => 3);
    for Parameter_Channel'Size use 2;
 
    --  Type representing all the param commands.
@@ -284,14 +286,12 @@ package body Parameter is
    begin
       Channel := CRTP_Channel_To_Parameter_Channel (Packet.Channel);
 
-      --  The C code (param.c) has a further case
-      --  MISC_CH/MISC_SETBYNAME, not handled here.
       case Channel is
          when PARAM_TOC_CH =>
             Parameter_TOC_Process (Packet);
          when PARAM_READ_CH =>
             Parameter_Read_Process (Packet);
-         when PARAM_WRITE_CH =>
+         when PARAM_WRITE_CH | PARAM_MISC_CH =>
             null;
       end case;
    end Parameter_CRTP_Handler;

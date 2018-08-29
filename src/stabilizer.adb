@@ -92,7 +92,63 @@ with SPARK_Mode,
                                             Alt_Hold_Target))
 is
 
+   --  Body declarations
+
+   procedure Init_Logging;
+
    --  Private procedures and functions
+
+   ------------------
+   -- Init_Logging --
+   ------------------
+
+   procedure Init_Logging
+     with SPARK_Mode => Off -- 'Address isn't allowed in SPARK
+   is
+      Dummy : Boolean;
+   begin
+      Log.Add_Log_Variable (Group    => "motor",
+                            Name     => "m1",
+                            Log_Type => Log.LOG_UINT16,
+                            Variable => Motor_Power_M1'Address,
+                            Success  => Dummy);
+      Log.Add_Log_Variable (Group    => "motor",
+                            Name     => "m2",
+                            Log_Type => Log.LOG_UINT16,
+                            Variable => Motor_Power_M2'Address,
+                            Success  => Dummy);
+      Log.Add_Log_Variable (Group    => "motor",
+                            Name     => "m3",
+                            Log_Type => Log.LOG_UINT16,
+                            Variable => Motor_Power_M3'Address,
+                            Success  => Dummy);
+      Log.Add_Log_Variable (Group    => "motor",
+                            Name     => "m4",
+                            Log_Type => Log.LOG_UINT16,
+                            Variable => Motor_Power_M4'Address,
+                            Success  => Dummy);
+
+      Log.Add_Log_Variable (Group    => "stabilizer",
+                            Name     => "roll",
+                            Log_Type => Log.LOG_FLOAT,
+                            Variable => Euler_Roll_Actual'Address,
+                            Success  => Dummy);
+      Log.Add_Log_Variable (Group    => "stabilizer",
+                            Name     => "pitch",
+                            Log_Type => Log.LOG_FLOAT,
+                            Variable => Euler_Pitch_Actual'Address,
+                            Success  => Dummy);
+      Log.Add_Log_Variable (Group    => "stabilizer",
+                            Name     => "yaw",
+                            Log_Type => Log.LOG_FLOAT,
+                            Variable => Euler_Yaw_Actual'Address,
+                            Success  => Dummy);
+      Log.Add_Log_Variable (Group    => "stabilizer",
+                            Name     => "thrust",
+                            Log_Type => Log.LOG_UINT16,
+                            Variable => Actuator_Thrust'Address,
+                            Success  => Dummy);
+   end Init_Logging;
 
    ---------------------
    -- Stabilizer_Init --
@@ -106,51 +162,7 @@ is
 
       Controller_Init;
 
-      declare
-         Dummy : Boolean;
-      begin
-         Log.Add_Log_Variable (Group    => "motor",
-                               Name     => "m1",
-                               Log_Type => Log.LOG_UINT16,
-                               Variable => Motor_Power_M1'Address,
-                               Success  => Dummy);
-         Log.Add_Log_Variable (Group    => "motor",
-                               Name     => "m2",
-                               Log_Type => Log.LOG_UINT16,
-                               Variable => Motor_Power_M2'Address,
-                               Success  => Dummy);
-         Log.Add_Log_Variable (Group    => "motor",
-                               Name     => "m3",
-                               Log_Type => Log.LOG_UINT16,
-                               Variable => Motor_Power_M3'Address,
-                               Success  => Dummy);
-         Log.Add_Log_Variable (Group    => "motor",
-                               Name     => "m4",
-                               Log_Type => Log.LOG_UINT16,
-                               Variable => Motor_Power_M4'Address,
-                               Success  => Dummy);
-
-         Log.Add_Log_Variable (Group    => "stabilizer",
-                               Name     => "roll",
-                               Log_Type => Log.LOG_FLOAT,
-                               Variable => Euler_Roll_Actual'Address,
-                               Success  => Dummy);
-         Log.Add_Log_Variable (Group    => "stabilizer",
-                               Name     => "pitch",
-                               Log_Type => Log.LOG_FLOAT,
-                               Variable => Euler_Pitch_Actual'Address,
-                               Success  => Dummy);
-         Log.Add_Log_Variable (Group    => "stabilizer",
-                               Name     => "yaw",
-                               Log_Type => Log.LOG_FLOAT,
-                               Variable => Euler_Yaw_Actual'Address,
-                               Success  => Dummy);
-         Log.Add_Log_Variable (Group    => "stabilizer",
-                               Name     => "thrust",
-                               Log_Type => Log.LOG_UINT16,
-                               Variable => Actuator_Thrust'Address,
-                               Success  => Dummy);
-      end;
+      Init_Logging;
 
       Is_Init := True;
    end Stabilizer_Init;

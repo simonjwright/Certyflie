@@ -71,6 +71,7 @@ package body CRTP_Service is
             CRTP_Send_Packet (Tx_Packet, Has_Succeed);
          when Link_Source =>
             Tx_Packet.Size := CRTP_MAX_DATA_SIZE;
+            Tx_Packet.Data_1 := (others => 0);
             CRTP_Send_Packet (Tx_Packet, Has_Succeed);
          when others =>
             --  Null packets
