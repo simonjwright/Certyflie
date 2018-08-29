@@ -38,15 +38,14 @@ project Crazyflie_Build is
       for Default_Switches ("ada") use
         Compiler'Default_Switches ("ada")
         & ("-gnatQ", "-gnatyg", "-gnata", "-gnatwa", "-gnatw.X")
-        & ("-ffunction-sections", "-fdata-sections");
+        & ("-ffunction-sections", "-fdata-sections", "-g");
    end Compiler;
 
    package Builder is
       for Global_Configuration_Pragmas use "gnat.adc";
       for Executable ("main.adb") use project'Project_Dir & "cflie.elf";
-      for Default_Switches ("Ada") use
+      for Switches ("Ada") use
         ("-s",
-         "-g",
          "--create-map-file=" & project'Project_Dir & "cflie.map");
    end Builder;
 
@@ -57,8 +56,7 @@ project Crazyflie_Build is
       --  executable over the radio or executes an existing one.
       --  See https://wiki.bitcraze.io/doc:crazyflie:bootloader:protocol
       for Default_Switches ("Ada") use
-        ("-Wl,--defsym,START_OFFSET=0x4000")
-        & ("-Wl,-gc-sections");
+        ("-g", "-Wl,--defsym,START_OFFSET=0x4000", "-Wl,-gc-sections");
    end Linker;
 
    package Ide is

@@ -31,7 +31,7 @@ library project Crazyflie_Support is
       for Default_Switches ("ada") use
         Compiler'Default_Switches ("ada")
         & ("-gnatQ", "-gnatyg", "-gnata", "-gnatwa", "-gnatw.X")
-        & ("-ffunction-sections", "-fdata-sections");
+        & ("-ffunction-sections", "-fdata-sections", "-g");
    end Compiler;
 
 end Crazyflie_Support;
