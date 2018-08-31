@@ -29,7 +29,7 @@
 
 --  Package initializing all the modules of the Crazyflie
 
-with System;
+private with System;
 
 package Crazyflie_System is
 

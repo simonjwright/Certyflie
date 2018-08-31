@@ -27,7 +27,7 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Safety; use Safety;
+with Safety;
 
 package body Free_Fall
 with SPARK_Mode,
@@ -45,7 +45,7 @@ is
    ----------------------
 
    procedure Add_Acc_Z_Sample
-     (Acc_Z            : T_Acc;
+     (Acc_Z            : IMU.T_Acc;
       Data_Collector   : in out FF_Acc_Data_Collector) is
    begin
       Data_Collector.Samples (Data_Collector.Index) := Acc_Z;
@@ -77,17 +77,18 @@ is
    -------------------------
 
    procedure FF_Detect_Free_Fall
-     (Acc         :  Accelerometer_Data;
+     (Acc         :  IMU.Accelerometer_Data;
       FF_Detected : out Boolean) is
+      use type Types.T_Uint16;
    begin
       if Acc.X in Free_Fall_Threshold and
         Acc.Y in Free_Fall_Threshold and
         Acc.Z in Free_Fall_Threshold
       then
          FF_Duration_Counter :=
-           Saturate (FF_Duration_Counter + 1,
-                     0,
-                     FF_DURATION + 1);
+           Safety.Saturate (FF_Duration_Counter + 1,
+                            0,
+                            FF_DURATION + 1);
       else
          FF_Duration_Counter := 0;
       end if;
@@ -102,6 +103,7 @@ is
    procedure FF_Detect_Landing (Landing_Detected : out Boolean)
    is
       Derivative : Float;
+      use type Types.T_Uint16;
    begin
       Landing_Detected := False;
 
@@ -127,7 +129,9 @@ is
    -----------------
 
    procedure FF_Watchdog is
-      Time_Since_Last_FF : constant Time_Span := Get_Time_Since_Last_Free_Fall;
+      Time_Since_Last_FF : constant Ada.Real_Time.Time_Span
+        := Get_Time_Since_Last_Free_Fall;
+      use type Ada.Real_Time.Time_Span;
    begin
       --  if the drone is in recovery mode and it has not recovered after
       --  the specified timeout, disable the free fall mode in emergency.
@@ -141,12 +145,13 @@ is
    -- FF_Check_Event --
    --------------------
 
-   procedure FF_Check_Event (Acc : Accelerometer_Data)
+   procedure FF_Check_Event (Acc : IMU.Accelerometer_Data)
    is
       Has_Detected_FF         : Boolean;
       Has_Landed              : Boolean;
-      Time_Since_Last_Landing : constant Time_Span :=
-                                  Get_Time_Since_Last_Landing;
+      Time_Since_Last_Landing : constant Ada.Real_Time.Time_Span :=
+        Get_Time_Since_Last_Landing;
+      use type Ada.Real_Time.Time_Span;
    begin
       --  Check if FF Detection is disabled
       if FF_Mode = DISABLED then
@@ -162,7 +167,7 @@ is
       FF_Detect_Landing (Has_Landed);
 
       if Has_Landed then
-         Last_Landing_Time := Clock;
+         Last_Landing_Time := Ada.Real_Time.Clock;
          In_Recovery := False;
       end if;
 
@@ -172,7 +177,7 @@ is
       if not In_Recovery and Has_Detected_FF and
         Time_Since_Last_Landing > STABILIZATION_PERIOD_AFTER_LANDING
       then
-         Last_FF_Detected_Time := Clock;
+         Last_FF_Detected_Time := Ada.Real_Time.Clock;
          In_Recovery := True;
          Recovery_Thrust := MAX_RECOVERY_THRUST;
       end if;
@@ -187,8 +192,8 @@ is
    procedure FF_Get_Recovery_Commands
      (Euler_Roll_Desired  : in out Float;
       Euler_Pitch_Desired : in out Float;
-      Roll_Type           : in out RPY_Type;
-      Pitch_Type          : in out RPY_Type) is
+      Roll_Type           : in out Commander.RPY_Type;
+      Pitch_Type          : in out Commander.RPY_Type) is
    begin
       --  If not in recovery, keep the original commands
       if not In_Recovery then
@@ -201,15 +206,16 @@ is
       Euler_Pitch_Desired := 0.0;
 
       --  We change the command types if the drone is ine RATE mode
-      Roll_Type := ANGLE;
-      Pitch_Type := ANGLE;
+      Roll_Type := Commander.ANGLE;
+      Pitch_Type := Commander.ANGLE;
    end FF_Get_Recovery_Commands;
 
    ----------------------------
    -- FF_Get_Recovery_Thrust --
    ----------------------------
 
-   procedure FF_Get_Recovery_Thrust (Thrust : in out T_Uint16) is
+   procedure FF_Get_Recovery_Thrust (Thrust : in out Types.T_Uint16) is
+      use type Types.T_Uint16;
    begin
       --  If not in recovery, keep the original thrust
       --  If the pilot has moved his joystick, the drone is not in recovery
@@ -231,22 +237,22 @@ is
    -- Get_Time_Since_Last_Landing --
    ---------------------------------
 
-   function Get_Time_Since_Last_Landing return Time_Span
+   function Get_Time_Since_Last_Landing return Ada.Real_Time.Time_Span
    is
-      Current_Time : constant Time := Clock;
+      use type Ada.Real_Time.Time;
    begin
-      return Current_Time - Last_Landing_Time;
+      return Ada.Real_Time.Clock - Last_Landing_Time;
    end Get_Time_Since_Last_Landing;
 
    -----------------------------------
    -- Get_Time_Since_Last_Free_Fall --
    -----------------------------------
 
-   function Get_Time_Since_Last_Free_Fall return Time_Span
+   function Get_Time_Since_Last_Free_Fall return Ada.Real_Time.Time_Span
    is
-      Current_Time : constant Time := Clock;
+      use type Ada.Real_Time.Time;
    begin
-      return Current_Time - Last_FF_Detected_Time;
+      return Ada.Real_Time.Clock - Last_FF_Detected_Time;
    end Get_Time_Since_Last_Free_Fall;
 
 end Free_Fall;

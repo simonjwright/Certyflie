@@ -29,71 +29,71 @@
 
 package body Console is
 
-   ------------------
-   -- Console_Init --
-   ------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Console_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
-      Set_True (Console_Access);
-      Message_To_Print := CRTP_Create_Packet (CRTP_PORT_CONSOLE, 0);
+      Ada.Synchronous_Task_Control.Set_True (Console_Access);
+      Message_To_Print := CRTP.Create_Packet (CRTP.PORT_CONSOLE, 0);
 
       Is_Init := True;
-   end Console_Init;
+   end Init;
 
-   function Console_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Init;
-   end Console_Test;
+   end Test;
 
-   --------------------------
-   -- Console_Send_Message --
-   --------------------------
+   ------------------
+   -- Send_Message --
+   ------------------
 
-   procedure Console_Send_Message (Has_Succeed : out Boolean) is
+   procedure Send_Message (Has_Succeed : out Boolean) is
    begin
-      CRTP_Send_Packet
-        (CRTP_Get_Packet_From_Handler (Message_To_Print), Has_Succeed);
+      CRTP.Send_Packet
+        (CRTP.Get_Packet_From_Handler (Message_To_Print), Has_Succeed);
 
       --  Reset the CRTP packet data contained in the handler
-      CRTP_Reset_Handler (Message_To_Print);
-   end Console_Send_Message;
+      CRTP.Reset_Handler (Message_To_Print);
+   end Send_Message;
 
-   -------------------
-   -- Console_Flush --
-   -------------------
+   -----------
+   -- Flush --
+   -----------
 
-   procedure Console_Flush (Has_Succeed : out Boolean) is
+   procedure Flush (Has_Succeed : out Boolean) is
    begin
-      Suspend_Until_True (Console_Access);
-      Console_Send_Message (Has_Succeed);
-      Set_True (Console_Access);
-   end Console_Flush;
+      Ada.Synchronous_Task_Control.Suspend_Until_True (Console_Access);
+      Send_Message (Has_Succeed);
+      Ada.Synchronous_Task_Control.Set_True (Console_Access);
+   end Flush;
 
-   ----------------------
-   -- Console_Put_Line --
-   ----------------------
+   --------------
+   -- Put_Line --
+   --------------
 
-   procedure Console_Put_Line
+   procedure Put_Line
      (Message     : String;
       Has_Succeed : out Boolean)
    is
       Free_Bytes_In_Packet : Boolean := True;
 
-      procedure CRTP_Append_Character_Data is new CRTP_Append_Data (Character);
+      procedure Append_Character_Data is new CRTP.Append_Data (Character);
 
       procedure Put_Character (C : Character);
       procedure Put_Character (C : Character) is
       begin
-         CRTP_Append_Character_Data
+         Append_Character_Data
            (Message_To_Print, C, Free_Bytes_In_Packet);
 
          if not Free_Bytes_In_Packet then
-            Console_Send_Message (Has_Succeed);
+            Send_Message (Has_Succeed);
          end if;
       end Put_Character;
    begin
@@ -102,7 +102,7 @@ package body Console is
       end loop;
       Put_Character (ASCII.LF);
 
-      Console_Send_Message (Has_Succeed);
-   end Console_Put_Line;
+      Send_Message (Has_Succeed);
+   end Put_Line;
 
 end Console;

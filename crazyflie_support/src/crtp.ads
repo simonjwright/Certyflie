@@ -28,10 +28,10 @@
 ------------------------------------------------------------------------------
 
 with System;
-with Ada.Real_Time;      use Ada.Real_Time;
+with Ada.Real_Time;
 
 with Generic_Queue;
-with Types;              use Types;
+with Types;
 
 package CRTP
   with Abstract_State => CRTP_State
@@ -39,198 +39,199 @@ is
 
    --  Constants
 
-   CRTP_MAX_DATA_SIZE : constant := 30;
-   CRTP_TX_QUEUE_SIZE : constant := 60;
-   CRTP_RX_QUEUE_SIZE : constant := 2;
-   CRTP_NBR_OF_PORTS  : constant := 16;
+   MAX_DATA_SIZE : constant := 30;
+   TX_QUEUE_SIZE : constant := 60;
+   RX_QUEUE_SIZE : constant := 2;
+   NBR_OF_PORTS  : constant := 16;
 
    --  Types
 
    --  Type used for representing a CRTP channel, which can be seen
    --  as a sub-set for a specific port.
-   type CRTP_Channel is new T_Uint8 range 0 .. 3;
-   for CRTP_Channel'Size use 2;
+   type Channel_T is new Types.T_Uint8 range 0 .. 3;
+   for Channel_T'Size use 2;
 
    --  Enumeration type for CRTP ports. Each port corresponds to
    --  a specific modules.
-   type CRTP_Port is (CRTP_PORT_CONSOLE,
-                      CRTP_PORT_PARAM,
-                      CRTP_PORT_COMMANDER,
-                      CRTP_PORT_MEM,
-                      CRTP_PORT_LOG,
-                      CRTP_PORT_PLATFORM,
-                      CRTP_PORT_LINK);
-   for CRTP_Port use (CRTP_PORT_CONSOLE   => 16#00#,
-                      CRTP_PORT_PARAM     => 16#02#,
-                      CRTP_PORT_COMMANDER => 16#03#,
-                      CRTP_PORT_MEM       => 16#04#,
-                      CRTP_PORT_LOG       => 16#05#,
-                      CRTP_PORT_PLATFORM  => 16#0D#,
-                      CRTP_PORT_LINK      => 16#0F#);
-   for CRTP_Port'Size use 4;
+   type Port_T is (PORT_CONSOLE,
+                   PORT_PARAM,
+                   PORT_COMMANDER,
+                   PORT_MEM,
+                   PORT_LOG,
+                   PORT_PLATFORM,
+                   PORT_LINK);
+   for Port_T use (PORT_CONSOLE   => 16#00#,
+                   PORT_PARAM     => 16#02#,
+                   PORT_COMMANDER => 16#03#,
+                   PORT_MEM       => 16#04#,
+                   PORT_LOG       => 16#05#,
+                   PORT_PLATFORM  => 16#0D#,
+                   PORT_LINK      => 16#0F#);
+   for Port_T'Size use 4;
 
    --  Type for representing the two reserved bits in a CRTP packet.
    --  These bits are used for the transport layer.
-   type CRTP_Reserved is new T_Uint8 range 0 .. 3;
-   for CRTP_Reserved'Size use 2;
+   type Reserved_T is new Types.T_Uint8 range 0 .. 3;
+   for Reserved_T'Size use 2;
 
    --  Type for CRTP packet data.
-   subtype CRTP_Data is T_Uint8_Array (1 .. CRTP_MAX_DATA_SIZE);
+   subtype Data_T is Types.T_Uint8_Array (1 .. MAX_DATA_SIZE);
 
    --  Type used to represenet a raw CRTP Packet (Header + Data).
-   type CRTP_Raw is array (1 .. CRTP_MAX_DATA_SIZE + 1) of T_Uint8;
+   type Raw_T is array (1 .. MAX_DATA_SIZE + 1) of Types.T_Uint8;
 
    --  Type listing the different representations for the union type
    --  CRTP Packet.
-   type CRTP_Packet_Representation is (DETAILED, HEADER_DATA, RAW);
+   type Packet_Representation is (DETAILED, HEADER_DATA, RAW_Packet);
 
    --  Type for CRTP packets.
-   type CRTP_Packet (Repr : CRTP_Packet_Representation := DETAILED) is record
-      Size     : T_Uint8;
+   type Packet (Repr : Packet_Representation := DETAILED) is record
+      Size     : Types.T_Uint8;
 
       case Repr is
          when DETAILED =>
-            Channel    : CRTP_Channel;
-            Reserved   : CRTP_Reserved;
-            Port       : CRTP_Port;
-            Data_1     : CRTP_Data;
+            Channel  : Channel_T;
+            Reserved : Reserved_T;
+            Port     : Port_T;
+            Data_1   : Data_T;
          when HEADER_DATA =>
-            Header     : T_Uint8;
-            Data_2     : CRTP_Data;
-         when RAW =>
-            Raw        : CRTP_Raw;
+            Header : Types.T_Uint8;
+            Data_2 : Data_T;
+         when RAW_Packet =>
+            Raw_Pkt : Raw_T;
       end case;
    end record;
 
-   pragma Unchecked_Union (CRTP_Packet);
-   for CRTP_Packet'Size use 256;
-   pragma Pack (CRTP_Packet);
+   pragma Unchecked_Union (Packet);
+   for Packet'Size use 256;
+   pragma Pack (Packet);
 
    --  Type used to easily manipulate CRTP packet.
-   type CRTP_Packet_Handler is private;
+   type Packet_Handler is private;
 
    --  Procedures and functions
 
    --  Create a CRTP Packet handler to append/get data.
-   function CRTP_Create_Packet
-     (Port    : CRTP_Port;
-      Channel : CRTP_Channel) return CRTP_Packet_Handler;
+   function Create_Packet
+     (Port    : Port_T;
+      Channel : Channel_T) return Packet_Handler;
 
    --  Return an handler to easily manipulate the CRTP packet.
-   function CRTP_Get_Handler_From_Packet
-     (Packet : CRTP_Packet) return CRTP_Packet_Handler;
+   function Get_Handler_From_Packet
+     (Pkt : Packet) return Packet_Handler;
 
    --  Return the CRTP Packet contained in the CRTP Packet handler.
-   function CRTP_Get_Packet_From_Handler
-     (Handler : CRTP_Packet_Handler) return CRTP_Packet;
+   function Get_Packet_From_Handler
+     (Handler : Packet_Handler) return Packet;
 
    --  Append data to the CRTP Packet.
    generic
       type T_Data is private;
-   procedure CRTP_Append_Data
-     (Handler        : in out CRTP_Packet_Handler;
+   procedure Append_Data
+     (Handler        : in out Packet_Handler;
       Data           : T_Data;
       Has_Succeed    : out Boolean);
 
    --  Get data at a specified index of the CRTP Packet data field.
    generic
       type T_Data is private;
-   procedure CRTP_Get_Data
-     (Handler     : CRTP_Packet_Handler;
-      Index       : Integer;
+   procedure Get_Data
+     (Handler     : Packet_Handler;
+      Index       : Positive;
       Data        : in out T_Data;
       Has_Succeed : out Boolean);
 
    --  Function pointer type for callbacks.
-   type CRTP_Callback is access procedure (Packet : CRTP_Packet);
+   type Callback is access procedure (Pkt : Packet);
 
    --  Reset the index, the size and the data contained in the handler.
-   procedure CRTP_Reset_Handler (Handler : in out CRTP_Packet_Handler);
+   procedure Reset_Handler (Handler : in out Packet_Handler);
 
    --  Get the size of the CRTP packet contained in the handler.
-   function CRTP_Get_Packet_Size
-     (Handler : CRTP_Packet_Handler) return T_Uint8;
+   function Get_Packet_Size
+     (Handler : Packet_Handler) return Types.T_Uint8;
 
    --  Receive a packet from the port queue, putting the task calling it
    --  in sleep mode while a packet has not been received
-   procedure CRTP_Receive_Packet_Blocking
-     (Packet           : out CRTP_Packet;
-      Port_ID          : CRTP_Port);
+   procedure Receive_Packet_Blocking
+     (Pkt     : out Packet;
+      Port_ID :     Port_T);
 
    --  Send a packet, with a given Timeout
-   procedure CRTP_Send_Packet
-     (Packet : CRTP_Packet;
-      Has_Succeed : out Boolean;
-      Time_To_Wait : Time_Span := Milliseconds (0));
+   procedure Send_Packet
+     (Pkt          :     Packet;
+      Has_Succeed  : out Boolean;
+      Time_To_Wait :     Ada.Real_Time.Time_Span
+        := Ada.Real_Time.Time_Span_Zero);
 
    --  Register a callback to be called when a packet is received in
    --  the port queue
-   procedure CRTP_Register_Callback
-     (Port_ID  : CRTP_Port;
-      Callback : CRTP_Callback);
+   procedure Register_Callback
+     (Port_ID : Port_T;
+      Callbk  : Callback);
 
    --  Unregister the callback for this port.
-   procedure CRTP_Unregister_Callback (Port_ID : CRTP_Port);
+   procedure Unregister_Callback (Port_ID : Port_T);
 
    --  Reset the CRTP module by flushing the Tx Queue.
-   procedure CRTP_Reset;
+   procedure Reset;
 
    --  Used by the Commander module to state if we are still connected or not.
-   procedure CRTP_Set_Is_Connected (Value : Boolean);
+   procedure Set_Is_Connected (Value : Boolean);
 
    --  Used to know if we are still connected.
-   function CRTP_Is_Connected return Boolean;
+   function Is_Connected return Boolean;
 
    --  Task in charge of transmitting the messages in the Tx Queue
    --  to the link layer.
-   task type CRTP_Tx_Task_Type (Prio : System.Priority) is
+   task type Tx_Task_Type (Prio : System.Priority) is
       pragma Priority (Prio);
-   end CRTP_Tx_Task_Type;
+   end Tx_Task_Type;
 
    --  Task in charge of dequeuing the messages in the Rx_queue
    --  to put them in the Port_Queues.
-   task type CRTP_Rx_Task_Type (Prio : System.Priority) is
+   task type Rx_Task_Type (Prio : System.Priority) is
       pragma Priority (Prio);
-   end CRTP_Rx_Task_Type;
+   end Rx_Task_Type;
 
 private
-   package CRTP_Queue is new Generic_Queue (CRTP_Packet);
+   package Queue is new Generic_Queue (Packet);
 
    --  Types
-   type CRTP_Packet_Handler is record
-      Packet : CRTP_Packet;
-      Index  : Positive;
+   type Packet_Handler is record
+      Pkt   : Packet;
+      Index : Positive;
    end record;
 
    --  Tasks and protected objects
 
    pragma Warnings (Off,  "violate restriction No_Implicit_Heap_Allocation");
    --  Protected object queue for transmission.
-   Tx_Queue : CRTP_Queue.Protected_Queue
-     (System.Interrupt_Priority'Last, CRTP_TX_QUEUE_SIZE);
+   Tx_Queue : Queue.Protected_Queue
+     (System.Interrupt_Priority'Last, TX_QUEUE_SIZE);
 
    --  Protected object queue for reception.
-   Rx_Queue : CRTP_Queue.Protected_Queue
-     (System.Interrupt_Priority'Last, CRTP_RX_QUEUE_SIZE);
+   Rx_Queue : Queue.Protected_Queue
+     (System.Interrupt_Priority'Last, RX_QUEUE_SIZE);
    pragma Warnings (On,  "violate restriction No_Implicit_Heap_Allocation");
 
    --  Array of protected object queues, one for each task.
-   Port_Queues : array (CRTP_Port) of CRTP_Queue.Protected_Queue
+   Port_Queues : array (Port_T) of Queue.Protected_Queue
      (System.Interrupt_Priority'Last, 1);
 
    --  Array of callbacks when a packet is received.
-   Callbacks : array (CRTP_Port) of CRTP_Callback := (others => null);
+   Callbacks : array (Port_T) of Callback := (others => null);
 
    --  Global variables
 
    --  Number of dropped packets.
    Dropped_Packets : Natural := 0
-     with
-       Part_Of => CRTP_State;
+   with
+     Part_Of => CRTP_State;
 
    --  Used to know if we are still connected or not.
-   Is_Connected    : Boolean := False
-     with
-       Part_Of => CRTP_State;
+   Connected : Boolean := False
+   with
+     Part_Of => CRTP_State;
 
 end CRTP;

@@ -27,16 +27,17 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Crazyflie_Config;    use Crazyflie_Config;
-with Radiolink; use Radiolink;
+with Crazyflie_Config;
+with Radiolink;
 
 package body Link_Interface is
 
    ---------------
-   -- Link_Init --
+   -- Init --
    ---------------
 
-   procedure Link_Init is
+   procedure Init is
+      use Crazyflie_Config;
    begin
       if Is_Init then
          return;
@@ -44,43 +45,45 @@ package body Link_Interface is
 
       case LINK_LAYER_TYPE is
          when RADIO_LINK =>
-            Radiolink_Init;
+            Radiolink.Init;
          when others =>
             --  Other link layers not implemented yet.
             null;
       end case;
 
       Is_Init := True;
-   end Link_Init;
+   end Init;
 
    ----------------------
-   -- Link_Send_Packet --
+   -- Send_Packet --
    ----------------------
 
-   function Link_Send_Packet (Packet : CRTP_Packet) return Boolean is
+   function Send_Packet (Packet : CRTP.Packet) return Boolean is
+      use Crazyflie_Config;
    begin
       case LINK_LAYER_TYPE is
          when RADIO_LINK =>
-            return Radiolink_Send_Packet (Packet);
+            return Radiolink.Send_Packet (Packet);
          when others =>
             --  Other link layers not implemented yet.
             return False;
       end case;
-   end Link_Send_Packet;
+   end Send_Packet;
 
    ----------------------------------
-   -- Link_Receive_Packet_Blocking --
+   -- Receive_Packet_Blocking --
    ----------------------------------
 
-   procedure Link_Receive_Packet_Blocking (Packet : out CRTP_Packet) is
+   procedure Receive_Packet_Blocking (Packet : out CRTP.Packet) is
+      use Crazyflie_Config;
    begin
       case LINK_LAYER_TYPE is
          when RADIO_LINK =>
-            Radiolink_Receive_Packet_Blocking (Packet);
+            Radiolink.Receive_Packet_Blocking (Packet);
          when others =>
             --  Other link layers not implemented yet.
             null;
       end case;
-   end Link_Receive_Packet_Blocking;
+   end Receive_Packet_Blocking;
 
 end Link_Interface;

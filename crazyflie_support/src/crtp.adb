@@ -29,110 +29,110 @@
 
 with Ada.Unchecked_Conversion;
 
-with Link_Interface;      use Link_Interface;
+with Link_Interface;
 pragma Elaborate (Link_Interface);
 
-with LEDS;                use LEDS;
+with LEDS;
 
 package body CRTP
 with Refined_State => (CRTP_State => (Dropped_Packets,
-                                      Is_Connected))
+                                      Connected))
 is
 
-   -----------------------
-   -- CRTP_Tx_Task_Type --
-   -----------------------
+   ------------------
+   -- Tx_Task_Type --
+   ------------------
 
-   task body CRTP_Tx_Task_Type is
-      Packet : CRTP_Packet;
+   task body Tx_Task_Type is
+      Pkt         : Packet;
       Has_Succeed : Boolean;
       pragma Unreferenced (Has_Succeed);
    begin
       loop
          Tx_Queue.Await_Item_To_Dequeue
-           (Packet);
+           (Pkt);
 
-         Has_Succeed := Link_Send_Packet (Packet);
+         Has_Succeed := Link_Interface.Send_Packet (Pkt);
       end loop;
-   end CRTP_Tx_Task_Type;
+   end Tx_Task_Type;
 
-   -----------------------
-   -- CRTP_Rx_Task_Type --
-   -----------------------
+   ------------------
+   -- Rx_Task_Type --
+   ------------------
 
-   task body CRTP_Rx_Task_Type is
-      Packet : CRTP_Packet;
+   task body Rx_Task_Type is
+      Pkt         : Packet;
       Has_Succeed : Boolean;
    begin
       loop
-         Link_Receive_Packet_Blocking (Packet);
+         Link_Interface.Receive_Packet_Blocking (Pkt);
 
-         if Callbacks (Packet.Port) /= null then
-            Callbacks (Packet.Port) (Packet);
+         if Callbacks (Pkt.Port) /= null then
+            Callbacks (Pkt.Port) (Pkt);
          else
-            Port_Queues (Packet.Port).Enqueue_Item (Packet, Has_Succeed);
+            Port_Queues (Pkt.Port).Enqueue_Item (Pkt, Has_Succeed);
          end if;
       end loop;
-   end CRTP_Rx_Task_Type;
+   end Rx_Task_Type;
 
-   ------------------------
-   -- CRTP_Create_Packet --
-   ------------------------
+   -------------------
+   -- Create_Packet --
+   -------------------
 
-   function CRTP_Create_Packet
-     (Port : CRTP_Port;
-      Channel : CRTP_Channel) return CRTP_Packet_Handler is
-      Packet : CRTP_Packet;
-      Handler : CRTP_Packet_Handler;
+   function Create_Packet
+     (Port    : Port_T;
+      Channel : Channel_T) return Packet_Handler is
+      Pkt : Packet;
+      Handler : Packet_Handler;
    begin
-      Packet.Size := 0;
-      Packet.Reserved := 0;
-      Packet.Port := Port;
-      Packet.Channel := Channel;
+      Pkt.Size := 0;
+      Pkt.Reserved := 0;
+      Pkt.Port := Port;
+      Pkt.Channel := Channel;
 
       Handler.Index := 1;
-      Handler.Packet := Packet;
+      Handler.Pkt := Pkt;
 
       return Handler;
-   end CRTP_Create_Packet;
+   end Create_Packet;
 
-   ----------------------------------
-   -- CRTP_Get_Handler_From_Packet --
-   ----------------------------------
+   -----------------------------
+   -- Get_Handler_From_Packet --
+   -----------------------------
 
-   function CRTP_Get_Handler_From_Packet
-     (Packet : CRTP_Packet) return CRTP_Packet_Handler
+   function Get_Handler_From_Packet
+     (Pkt : Packet) return Packet_Handler
    is
-      Handler : CRTP_Packet_Handler;
+      Handler : Packet_Handler;
    begin
-      Handler.Packet := Packet;
-      Handler.Index := Integer (Packet.Size);
+      Handler.Pkt := Pkt;
+      Handler.Index := Integer (Pkt.Size);
 
       return Handler;
-   end CRTP_Get_Handler_From_Packet;
+   end Get_Handler_From_Packet;
 
-   ----------------------------------
-   -- CRTP_Get_Packet_From_Handler --
-   ----------------------------------
+   -----------------------------
+   -- Get_Packet_From_Handler --
+   -----------------------------
 
-   function CRTP_Get_Packet_From_Handler
-     (Handler : CRTP_Packet_Handler) return CRTP_Packet is
+   function Get_Packet_From_Handler
+     (Handler : Packet_Handler) return Packet is
    begin
-      return Handler.Packet;
-   end CRTP_Get_Packet_From_Handler;
+      return Handler.Pkt;
+   end Get_Packet_From_Handler;
 
-   -------------------
-   -- CRTP_Get_Data --
-   -------------------
+   --------------
+   -- Get_Data --
+   --------------
 
-   procedure CRTP_Get_Data
-     (Handler     : CRTP_Packet_Handler;
-      Index       : Integer;
+   procedure Get_Data
+     (Handler     : Packet_Handler;
+      Index       : Positive;
       Data        : in out T_Data;
       Has_Succeed : out Boolean)
    is
-      Data_Size : constant Natural := T_Data'Size / 8;
-      subtype Byte_Array_Data is T_Uint8_Array (1 .. Data_Size);
+      Data_Size : constant Natural := (T_Data'Size + 7) / 8;
+      subtype Byte_Array_Data is Types.T_Uint8_Array (1 .. Data_Size);
 
       ------------------------
       -- Byte_Array_To_Data --
@@ -141,29 +141,29 @@ is
       function Byte_Array_To_Data is new Ada.Unchecked_Conversion
         (Byte_Array_Data, T_Data);
    begin
-      if Index in Handler.Packet.Data_1'First ..
-        Handler.Packet.Data_1'Last - Data_Size - 1
+      if Index in Handler.Pkt.Data_1'First ..
+        Handler.Pkt.Data_1'Last - Data_Size - 1
       then
          Data := Byte_Array_To_Data
-           (Handler.Packet.Data_1 (Index .. Index + Data_Size - 1));
+           (Handler.Pkt.Data_1 (Index .. Index + Data_Size - 1));
          Has_Succeed := True;
       else
          Has_Succeed := False;
       end if;
-   end CRTP_Get_Data;
+   end Get_Data;
 
-   ----------------------
-   -- CRTP_Append_Data --
-   ----------------------
+   -----------------
+   -- Append_Data --
+   -----------------
 
-   procedure CRTP_Append_Data
-     (Handler : in out CRTP_Packet_Handler;
+   procedure Append_Data
+     (Handler : in out Packet_Handler;
       Data           : T_Data;
       Has_Succeed     : out Boolean)
    is
       Data_Size : constant Natural := (T_Data'Size + 7) / 8;
 
-      subtype Byte_Array_Data is T_Uint8_Array (1 .. Data_Size);
+      subtype Byte_Array_Data is Types.T_Uint8_Array (1 .. Data_Size);
 
       ------------------------
       -- Data_To_Byte_Array --
@@ -171,116 +171,120 @@ is
 
       function Data_To_Byte_Array is new Ada.Unchecked_Conversion
         (T_Data, Byte_Array_Data);
+
+      use type Types.T_Uint8;
    begin
-      if Handler.Index + Data_Size - 1 <= Handler.Packet.Data_1'Last then
-         Handler.Packet.Data_1
+      if Handler.Index + Data_Size - 1 <= Handler.Pkt.Data_1'Last then
+         Handler.Pkt.Data_1
            (Handler.Index .. Handler.Index + Data_Size - 1) :=
            Data_To_Byte_Array (Data);
 
-         Handler.Packet.Size := Handler.Packet.Size + T_Uint8 (Data_Size);
+         Handler.Pkt.Size := Handler.Pkt.Size + Types.T_Uint8 (Data_Size);
          Handler.Index := Handler.Index + Data_Size;
          Has_Succeed := True;
       else
          Has_Succeed := False;
       end if;
-   end CRTP_Append_Data;
+   end Append_Data;
 
-   ------------------------
-   -- CRTP_Reset_Handler --
-   ------------------------
+   -------------------
+   -- Reset_Handler --
+   -------------------
 
-   procedure CRTP_Reset_Handler (Handler : in out CRTP_Packet_Handler) is
+   procedure Reset_Handler (Handler : in out Packet_Handler) is
    begin
       Handler.Index := 1;
-      Handler.Packet.Size := 0;
-      Handler.Packet.Data_1 := (others => 0);
-   end CRTP_Reset_Handler;
+      Handler.Pkt.Size := 0;
+      Handler.Pkt.Data_1 := (others => 0);
+   end Reset_Handler;
 
-   --------------------------
-   -- CRTP_Get_Packet_Size --
-   --------------------------
+   ---------------------
+   -- Get_Packet_Size --
+   ---------------------
 
-   function CRTP_Get_Packet_Size
-     (Handler : CRTP_Packet_Handler) return T_Uint8 is
+   function Get_Packet_Size
+     (Handler : Packet_Handler) return Types.T_Uint8 is
    begin
-      return Handler.Packet.Size;
-   end CRTP_Get_Packet_Size;
+      return Handler.Pkt.Size;
+   end Get_Packet_Size;
 
-   ----------------------------------
-   -- CRTP_Receive_Packet_Blocking --
-   ----------------------------------
+   -----------------------------
+   -- Receive_Packet_Blocking --
+   -----------------------------
 
-   procedure CRTP_Receive_Packet_Blocking
-     (Packet           : out CRTP_Packet;
-      Port_ID          : CRTP_Port) is
+   procedure Receive_Packet_Blocking
+     (Pkt     : out Packet;
+      Port_ID : Port_T) is
    begin
-      Port_Queues (Port_ID).Await_Item_To_Dequeue
-        (Packet);
-   end CRTP_Receive_Packet_Blocking;
+      Port_Queues (Port_ID).Await_Item_To_Dequeue (Pkt);
+   end Receive_Packet_Blocking;
 
-   ----------------------
-   -- CRTP_Send_Packet --
-   ----------------------
+   -----------------
+   -- Send_Packet --
+   -----------------
 
-   procedure CRTP_Send_Packet
-     (Packet : CRTP_Packet;
-      Has_Succeed : out Boolean;
-      Time_To_Wait : Time_Span := Milliseconds (0))
+   procedure Send_Packet
+     (Pkt          :     Packet;
+      Has_Succeed  : out Boolean;
+      Time_To_Wait :     Ada.Real_Time.Time_Span
+        := Ada.Real_Time.Time_Span_Zero)
    is
       pragma Unreferenced (Time_To_Wait);
    begin
-      Tx_Queue.Enqueue_Item (Packet, Has_Succeed);
-   end CRTP_Send_Packet;
+      Tx_Queue.Enqueue_Item (Pkt, Has_Succeed);
+   end Send_Packet;
 
-   ----------------------------
-   -- CRTP_Register_Callback --
-   ----------------------------
+   -----------------------
+   -- Register_Callback --
+   -----------------------
 
-   procedure CRTP_Register_Callback
-     (Port_ID  : CRTP_Port;
-      Callback : CRTP_Callback) is
+   procedure Register_Callback
+        (Port_ID : Port_T;
+         Callbk  : Callback) is
    begin
-      Callbacks (Port_ID) := Callback;
-   end CRTP_Register_Callback;
+      Callbacks (Port_ID) := Callbk;
+   end Register_Callback;
 
-   ------------------------------
-   -- CRTP_Unregister_Callback --
-   ------------------------------
+   -------------------------
+   -- Unregister_Callback --
+   -------------------------
 
-   procedure CRTP_Unregister_Callback (Port_ID : CRTP_Port) is
+   procedure Unregister_Callback (Port_ID : Port_T) is
    begin
       Callbacks (Port_ID) := null;
-   end CRTP_Unregister_Callback;
+   end Unregister_Callback;
 
-   ----------------
-   -- CRTP_Reset --
-   ----------------
+   -----------
+   -- Reset --
+   -----------
 
-   procedure CRTP_Reset is
+   procedure Reset is
    begin
       Tx_Queue.Reset_Queue;
       --  TODO: reset the link queues too.
-   end CRTP_Reset;
+   end Reset;
 
-   ---------------------------
-   -- CRTP_Set_Is_Connected --
-   ---------------------------
+   ----------------------
+   -- Set_Is_Connected --
+   ----------------------
 
-   procedure CRTP_Set_Is_Connected (Value : Boolean) is
+   procedure Set_Is_Connected (Value : Boolean) is
    begin
-      Is_Connected := Value;
-      LEDS.Set_Link_State ((if Value then Connected else Not_Connected));
-   end CRTP_Set_Is_Connected;
+      Connected := Value;
+      LEDS.Set_Link_State ((if Value
+                            then LEDS.Connected
+                            else LEDS.Not_Connected));
+   end Set_Is_Connected;
 
-   -----------------------
-   -- CRTP_Is_Connected --
-   -----------------------
+   ------------------
+   -- Is_Connected --
+   ------------------
 
-   function CRTP_Is_Connected return Boolean is
+   function Is_Connected return Boolean is
    begin
       --  This is what crazyflie-firmware/src/modules/src/crtp.c does
       return True;
-      --  return Is_Connected;
-   end CRTP_Is_Connected;
+      --  return Connected;
+   end Is_Connected;
 
 end CRTP;

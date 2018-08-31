@@ -29,76 +29,72 @@
 
 package body LEDS is
 
-   procedure Cancel_Animation (Animation : in out LED_Animation);
-   procedure Activate_Animation (Animation : in out LED_Animation);
+   procedure Cancel_Animation (Anim : in out Animation);
+   procedure Activate_Animation (Anim : in out Animation);
 
-   ---------------
-   -- LEDS_Init --
-   ---------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure LEDS_Init is
+   procedure Init is
    begin
       STM32.Board.Initialize_LEDs;
       Is_Initialized := True;
-   end LEDS_Init;
+   end Init;
 
-   ---------------
-   -- LEDS_Test --
-   ---------------
+   ----------
+   -- Test --
+   ----------
 
-   function LEDS_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Initialized;
-   end LEDS_Test;
+   end Test;
 
-   -------------
-   -- Set_LED --
-   -------------
+   ---------
+   -- Set --
+   ---------
 
-   procedure Set_LED (LED : in out Crazyflie_LED; Value : Boolean)
+   procedure Set (LED : in out Crazyflie_LED; Value : Boolean)
    is
    begin
       if Value then
-         Turn_On (LED);
+         STM32.Board.Turn_On (LED);
       else
-         Turn_Off (LED);
+         STM32.Board.Turn_Off (LED);
       end if;
-   end Set_LED;
-
-   --------------------
-   -- Reset_All_LEDs --
-   --------------------
-
-   procedure Reset_All_LEDs renames All_LEDs_Off;
+   end Set;
 
    ----------------------
    -- Cancel_Animation --
    ----------------------
 
-   procedure Cancel_Animation (Animation : in out LED_Animation)
+   procedure Cancel_Animation (Anim : in out Animation)
    is
       Cancelled : Boolean with Unreferenced;
    begin
-      if Animation.Blink_Period > 0.0 then
-         Animation.Cancel_Handler (Cancelled);
+      if Anim.Blink_Period > 0.0 then
+         Anim.Cancel_Handler (Cancelled);
       end if;
 
-      Set_LED (Animation.LED, False);
+      Set (Anim.LED, False);
    end Cancel_Animation;
 
    ------------------------
    -- Activate_Animation --
    ------------------------
 
-   procedure Activate_Animation (Animation : in out LED_Animation)
+   procedure Activate_Animation (Anim : in out Animation)
    is
+      use type Ada.Real_Time.Time;
    begin
-      Set_LED (Animation.LED, True);
+      Set (Anim.LED, True);
 
-      if Animation.Blink_Period > 0.0 then
-         Animation.Set_Handler
-           (Clock + To_Time_Span (Animation.Blink_Period),
-            LED_Status_Event_Handler.Toggle_LED_Status'Access);
+      if Anim.Blink_Period > 0.0 then
+         Anim.Set_Handler
+           (Ada.Real_Time.Clock
+              + Ada.Real_Time.To_Time_Span (Anim.Blink_Period),
+            Status_Event_Handler.Toggle_Status'Access);
       end if;
    end Activate_Animation;
 
@@ -190,51 +186,54 @@ package body LEDS is
 
    function Get_Battery_State return Battery_State is (Current_Battery_Status);
 
-   ------------------------------
-   -- LED_Status_Event_Handler --
-   ------------------------------
+   --------------------------
+   -- Status_Event_Handler --
+   --------------------------
 
-   protected body LED_Status_Event_Handler is
+   protected body Status_Event_Handler is
 
-      procedure Toggle_LED_Status (Event : in out Timing_Event) is
-         Animation : LED_Animation renames
-                       LED_Animation (Timing_Event'Class (Event));
-         --  We "know" we have an LED_Animation value for the actual parameter
+      procedure Toggle_Status (Event : in out ARTTE.Timing_Event) is
+         Anim : Animation renames
+                       Animation (ARTTE.Timing_Event'Class (Event));
+         --  We "know" we have an Animation value for the actual parameter
          --  but the formal gives a view of type Timing_Event, so we convert
          --  to the subclass to change the view. (The inner conversion to
          --  the classwide base type is required.) Changing the view allows
          --  reference to the LED and Blink_Period components within Event.
-         Next      : Time;
+         Next  : Ada.Real_Time.Time;
+         use type Ada.Real_Time.Time;
       begin
-         Toggle_LED (Animation.LED);
+         Toggle (Anim.LED);
 
          --  Special case: the LED remains off not as long as it is on.
-         if Animation.Blink_Period > 0.5
-           and then not LED_Set (Animation.LED)
+         if Anim.Blink_Period > 0.5
+           and then not Is_Set (Anim.LED)
          then
-            Next := Clock + Milliseconds (500);
+            Next := Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (500);
 
          else
-            Next := Clock + To_Time_Span (Animation.Blink_Period);
+            Next := Ada.Real_Time.Clock
+              + Ada.Real_Time.To_Time_Span (Anim.Blink_Period);
          end if;
 
          --  Set this procedure as the handler for the next occurrence for
          --  Event, too.
-         Animation.Set_Handler (Next, Toggle_LED_Status'Access);
-      end Toggle_LED_Status;
+         Anim.Set_Handler (Next, Toggle_Status'Access);
+      end Toggle_Status;
 
-   end LED_Status_Event_Handler;
+   end Status_Event_Handler;
 
    protected Flasher_Handler is
       pragma Interrupt_Priority;
       --  GNAT GPL 2017/ravenscar-full-stm32f4 needs this.
 
       procedure Turn_Off_The_LED
-        (Event : in out Ada.Real_Time.Timing_Events.Timing_Event);
+        (Event : in out ARTTE.Timing_Event);
       --  We "know" that the Event is actually a Flasher.
    end Flasher_Handler;
 
    procedure Set (The_Flasher : in out Flasher) is
+      use type Ada.Real_Time.Time;
    begin
       --  cancel the timing event, if any
       declare
@@ -243,7 +242,7 @@ package body LEDS is
          The_Flasher.Cancel_Handler (Cancelled => Dummy);
       end;
       --  set the LED
-      Set_LED (The_Flasher.The_LED.all, True);
+      Set (The_Flasher.The_LED.all, True);
       --  set the timing event to turn off the LED in 5 ms
       The_Flasher.Set_Handler
         (Handler => Flasher_Handler.Turn_Off_The_LED'Access,
@@ -252,12 +251,12 @@ package body LEDS is
 
    protected body Flasher_Handler is
       procedure Turn_Off_The_LED
-        (Event : in out Ada.Real_Time.Timing_Events.Timing_Event) is
+        (Event : in out ARTTE.Timing_Event) is
          The_Flasher : Flasher
            renames Flasher
-           (Ada.Real_Time.Timing_Events.Timing_Event'Class (Event));
+           (ARTTE.Timing_Event'Class (Event));
       begin
-         Set_LED (The_Flasher.The_LED.all, False);
+         Set (The_Flasher.The_LED.all, False);
       end Turn_Off_The_LED;
    end Flasher_Handler;
 

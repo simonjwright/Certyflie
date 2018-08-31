@@ -30,7 +30,7 @@
 with Ada.Numerics; use Ada.Numerics;
 
 with Maths;        use Maths;
-with Safety;       use Safety;
+with Safety;
 
 package body SensFusion6
 with SPARK_Mode,
@@ -59,66 +59,66 @@ is
    --  Subtypes used to help SPARK proving absence of runtime errors
    --  in the Mahony algorithm
 
-   subtype T_Norm_Acc is T_Acc range -1.0 .. 1.0;
-   subtype T_Norm_Mag is T_Mag range -1.0 .. 1.0;
+   subtype T_Norm_Acc is IMU.T_Acc range -1.0 .. 1.0;
+   subtype T_Norm_Mag is IMU.T_Mag range -1.0 .. 1.0;
    subtype T_Float_1  is Float range -3.0 .. 3.0;
    subtype T_Float_2  is Float range -7.0 .. 7.0;
    subtype T_Float_3  is
      Float range -4.0 * MAX_RATE_CHANGE .. 4.0 * MAX_RATE_CHANGE;
    subtype T_Float_4  is Float range -MAX_RATE_CHANGE .. MAX_RATE_CHANGE;
-   subtype T_Float_5  is Float range T_Rate_Rad'First - MAX_INTEGRAL_ERROR
-     .. T_Rate_Rad'Last + MAX_INTEGRAL_ERROR;
+   subtype T_Float_5  is Float range IMU.T_Rate_Rad'First - MAX_INTEGRAL_ERROR
+     .. IMU.T_Rate_Rad'Last + MAX_INTEGRAL_ERROR;
 
    procedure Mahony_Update_Q
-     (Gx, Gy, Gz : T_Rate_Rad;
-      Ax, Ay, Az : T_Acc;
-      Mx, My, Mz : T_Mag;
-      Dt         : T_Delta_Time)
+     (Gx, Gy, Gz : IMU.T_Rate_Rad;
+      Ax, Ay, Az : IMU.T_Acc;
+      Mx, My, Mz : IMU.T_Mag;
+      Dt         : Types.T_Delta_Time)
      with Inline_Always;
 
    procedure Mahony_Update_Q
-     (Gx, Gy, Gz : T_Rate_Rad;
-      Ax, Ay, Az : T_Acc;
-      Dt         : T_Delta_Time)
+     (Gx, Gy, Gz : IMU.T_Rate_Rad;
+      Ax, Ay, Az : IMU.T_Acc;
+      Dt         : Types.T_Delta_Time)
      with Inline_Always;
 
-   ----------------------
-   -- SensFusion6_Init --
-   ----------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure SensFusion6_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
       Is_Init := True;
-   end SensFusion6_Init;
+   end Init;
 
-   ----------------------
-   -- SensFusion6_Test --
-   ----------------------
+   ----------
+   -- Test --
+   ----------
 
-   function SensFusion6_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Init;
-   end SensFusion6_Test;
+   end Test;
 
    ---------------------
    -- Mahony_Update_Q --
    ---------------------
 
    procedure Mahony_Update_Q
-     (Gx : T_Rate_Rad;
-      Gy : T_Rate_Rad;
-      Gz : T_Rate_Rad;
-      Ax : T_Acc;
-      Ay : T_Acc;
-      Az : T_Acc;
-      Mx : T_Mag;
-      My : T_Mag;
-      Mz : T_Mag;
-      Dt : T_Delta_Time)
+     (Gx : IMU.T_Rate_Rad;
+      Gy : IMU.T_Rate_Rad;
+      Gz : IMU.T_Rate_Rad;
+      Ax : IMU.T_Acc;
+      Ay : IMU.T_Acc;
+      Az : IMU.T_Acc;
+      Mx : IMU.T_Mag;
+      My : IMU.T_Mag;
+      Mz : IMU.T_Mag;
+      Dt : Types.T_Delta_Time)
    is
       Length     : Float;
       Recip_Norm : Float;
@@ -128,9 +128,9 @@ is
       Norm_Mx    : T_Norm_Mag;
       Norm_My    : T_Norm_Mag;
       Norm_Mz    : T_Norm_Mag;
-      N_Gx       : T_Rate_Rad := Gx;
-      N_Gy       : T_Rate_Rad := Gy;
-      N_Gz       : T_Rate_Rad := Gz;
+      N_Gx       : IMU.T_Rate_Rad := Gx;
+      N_Gy       : IMU.T_Rate_Rad := Gy;
+      N_Gz       : IMU.T_Rate_Rad := Gz;
       Q0_Q0      : Float;
       Q0_Q1      : Float;
       Q0_Q2      : Float;
@@ -168,17 +168,17 @@ is
       end if;
 
       --  Normalize the Magnetometer measurement
-      Norm_Mx := Saturate (Mx / Length, -1.0, 1.0);
-      Norm_My := Saturate (My / Length, -1.0, 1.0);
-      Norm_Mz := Saturate (Mz / Length, -1.0, 1.0);
+      Norm_Mx := Safety.Saturate (Mx / Length, -1.0, 1.0);
+      Norm_My := Safety.Saturate (My / Length, -1.0, 1.0);
+      Norm_Mz := Safety.Saturate (Mz / Length, -1.0, 1.0);
 
       Length := Sqrtf (Ax * Ax + Ay * Ay + Az * Az);
 
       if Length /= 0.0 then
          --  Normalize accelerometer measurment
-         Norm_Ax := Saturate (Ax / Length, -1.0, 1.0);
-         Norm_Ay := Saturate (Ay / Length, -1.0, 1.0);
-         Norm_Az := Saturate (Az / Length, -1.0, 1.0);
+         Norm_Ax := Safety.Saturate (Ax / Length, -1.0, 1.0);
+         Norm_Ay := Safety.Saturate (Ay / Length, -1.0, 1.0);
+         Norm_Az := Safety.Saturate (Az / Length, -1.0, 1.0);
 
          --  Auxiliary Variables to avoid repeated arithmetic
          Q0_Q0 := Q0 * Q0;
@@ -252,18 +252,18 @@ is
       --  Normalize quaternions
       Recip_Norm := Inv_Sqrt (Q0_Tmp * Q0_Tmp + Q1_Tmp * Q1_Tmp +
                                 Q2_Tmp * Q2_Tmp + Q3_Tmp * Q3_Tmp);
-      Q0 := Saturate (Q0_Tmp * Recip_Norm,
-                      T_Quaternion'First,
-                      T_Quaternion'Last);
-      Q1 := Saturate (Q1_Tmp * Recip_Norm,
-                      T_Quaternion'First,
-                      T_Quaternion'Last);
-      Q2 := Saturate (Q2_Tmp * Recip_Norm,
-                      T_Quaternion'First,
-                      T_Quaternion'Last);
-      Q3 := Saturate (Q3_Tmp * Recip_Norm,
-                      T_Quaternion'First,
-                      T_Quaternion'Last);
+      Q0 := Safety.Saturate (Q0_Tmp * Recip_Norm,
+                             Types.T_Quaternion'First,
+                             Types.T_Quaternion'Last);
+      Q1 := Safety.Saturate (Q1_Tmp * Recip_Norm,
+                             Types.T_Quaternion'First,
+                             Types.T_Quaternion'Last);
+      Q2 := Safety.Saturate (Q2_Tmp * Recip_Norm,
+                             Types.T_Quaternion'First,
+                             Types.T_Quaternion'Last);
+      Q3 := Safety.Saturate (Q3_Tmp * Recip_Norm,
+                             Types.T_Quaternion'First,
+                             Types.T_Quaternion'Last);
    end Mahony_Update_Q;
 
    ---------------------
@@ -271,13 +271,13 @@ is
    ---------------------
 
    procedure Mahony_Update_Q
-     (Gx : T_Rate_Rad;
-      Gy : T_Rate_Rad;
-      Gz : T_Rate_Rad;
-      Ax : T_Acc;
-      Ay : T_Acc;
-      Az : T_Acc;
-      Dt : T_Delta_Time)
+     (Gx : IMU.T_Rate_Rad;
+      Gy : IMU.T_Rate_Rad;
+      Gz : IMU.T_Rate_Rad;
+      Ax : IMU.T_Acc;
+      Ay : IMU.T_Acc;
+      Az : IMU.T_Acc;
+      Dt : Types.T_Delta_Time)
    is
       Recip_Norm      : Float;
       Norm_Ax         : T_Norm_Acc;
@@ -295,13 +295,13 @@ is
       Q1_Tmp          : T_Float_3;
       Q2_Tmp          : T_Float_3;
       Q3_Tmp          : T_Float_3;
-      Qa              : constant T_Quaternion := Q0;
-      Qb              : constant T_Quaternion := Q1;
-      Qc              : constant T_Quaternion := Q2;
-      Ax_Lifted       : T_Acc_Lifted;
-      Ay_Lifted       : T_Acc_Lifted;
-      Az_Lifted       : T_Acc_Lifted;
-      Square_Sum      : Natural_Float;
+      Qa              : constant Types.T_Quaternion := Q0;
+      Qb              : constant Types.T_Quaternion := Q1;
+      Qc              : constant Types.T_Quaternion := Q2;
+      Ax_Lifted       : IMU.T_Acc_Lifted;
+      Ay_Lifted       : IMU.T_Acc_Lifted;
+      Az_Lifted       : IMU.T_Acc_Lifted;
+      Square_Sum      : Types.Natural_Float;
       Rate_Change_Gx  : T_Float_4 := Gx;
       Rate_Change_Gy  : T_Float_4 := Gy;
       Rate_Change_Gz  : T_Float_4 := Gy;
@@ -312,9 +312,9 @@ is
    begin
       if not ((Ax = 0.0) and (Ay = 0.0) and (Az = 0.0)) then
          --  Normalize accelerometer measurement
-         Ax_Lifted := Lift_Away_From_Zero (Ax);
-         Ay_Lifted := Lift_Away_From_Zero (Ay);
-         Az_Lifted := Lift_Away_From_Zero (Az);
+         Ax_Lifted := Safety.Lift_Away_From_Zero (Ax);
+         Ay_Lifted := Safety.Lift_Away_From_Zero (Ay);
+         Az_Lifted := Safety.Lift_Away_From_Zero (Az);
          Square_Sum := Ax_Lifted * Ax_Lifted +
            Ay_Lifted * Ay_Lifted + Az_Lifted * Az_Lifted;
          --  We ensured that Ax_Tmp, Ay_Tmp, Az_Tmp are sufficiently far away
@@ -327,9 +327,9 @@ is
          pragma Assert (Ax in -16.0 .. 16.0);
          pragma Assert (Ay in -16.0 .. 16.0);
          pragma Assert (Az in -16.0 .. 16.0);
-         Norm_Ax := Saturate (Ax * Recip_Norm, -1.0, 1.0);
-         Norm_Ay := Saturate (Ay * Recip_Norm, -1.0, 1.0);
-         Norm_Az := Saturate (Az * Recip_Norm, -1.0, 1.0);
+         Norm_Ax := Safety.Saturate (Ax * Recip_Norm, -1.0, 1.0);
+         Norm_Ay := Safety.Saturate (Ay * Recip_Norm, -1.0, 1.0);
+         Norm_Az := Safety.Saturate (Az * Recip_Norm, -1.0, 1.0);
 
          --  Error is sum of cross product between estimated
          --  and measured direction of gravity
@@ -340,15 +340,18 @@ is
          --  Compute and apply integral feedback if enabled
          pragma Warnings (Off, "*condition is always*");
          if Two_Ki > 0.0 then
-            Integral_FBx := Saturate (Integral_FBx + Two_Ki * Half_Ex * Dt,
-                                      -MAX_INTEGRAL_ERROR,
-                                      MAX_INTEGRAL_ERROR);
-            Integral_FBy := Saturate (Integral_FBy + Two_Ki * Half_Ey * Dt,
-                                      -MAX_INTEGRAL_ERROR,
-                                      MAX_INTEGRAL_ERROR);
-            Integral_FBz := Saturate (Integral_FBz + Two_Ki * Half_Ez * Dt,
-                                      -MAX_INTEGRAL_ERROR,
-                                      MAX_INTEGRAL_ERROR);
+            Integral_FBx := Safety.Saturate
+              (Integral_FBx + Two_Ki * Half_Ex * Dt,
+               -MAX_INTEGRAL_ERROR,
+               MAX_INTEGRAL_ERROR);
+            Integral_FBy := Safety.Saturate
+              (Integral_FBy + Two_Ki * Half_Ey * Dt,
+               -MAX_INTEGRAL_ERROR,
+               MAX_INTEGRAL_ERROR);
+            Integral_FBz := Safety.Saturate
+              (Integral_FBz + Two_Ki * Half_Ez * Dt,
+               -MAX_INTEGRAL_ERROR,
+               MAX_INTEGRAL_ERROR);
             --  Apply integral feedback
             Integ_FB_Gx := Gx + Integral_FBx;
             Integ_FB_Gy := Gy + Integral_FBy;
@@ -394,40 +397,40 @@ is
       --  Normalize quaternions
       Recip_Norm := Inv_Sqrt (Q0_Tmp * Q0_Tmp + Q1_Tmp * Q1_Tmp +
                                 Q2_Tmp * Q2_Tmp + Q3_Tmp * Q3_Tmp);
-      Q0 := Saturate (Q0_Tmp * Recip_Norm,
-                      T_Quaternion'First,
-                      T_Quaternion'Last);
-      Q1 := Saturate (Q1_Tmp * Recip_Norm,
-                      T_Quaternion'First,
-                      T_Quaternion'Last);
-      Q2 := Saturate (Q2_Tmp * Recip_Norm,
-                      T_Quaternion'First,
-                      T_Quaternion'Last);
-      Q3 := Saturate (Q3_Tmp * Recip_Norm,
-                      T_Quaternion'First,
-                      T_Quaternion'Last);
+      Q0 := Safety.Saturate (Q0_Tmp * Recip_Norm,
+                             Types.T_Quaternion'First,
+                             Types.T_Quaternion'Last);
+      Q1 := Safety.Saturate (Q1_Tmp * Recip_Norm,
+                             Types.T_Quaternion'First,
+                             Types.T_Quaternion'Last);
+      Q2 := Safety.Saturate (Q2_Tmp * Recip_Norm,
+                             Types.T_Quaternion'First,
+                             Types.T_Quaternion'Last);
+      Q3 := Safety.Saturate (Q3_Tmp * Recip_Norm,
+                             Types.T_Quaternion'First,
+                             Types.T_Quaternion'Last);
    end Mahony_Update_Q;
 
-   --------------------------
-   -- SensFusion6_Update_Q --
-   --------------------------
+   --------------
+   -- Update_Q --
+   --------------
 
-   procedure SensFusion6_Update_Q
-     (Gx : T_Rate;
-      Gy : T_Rate;
-      Gz : T_Rate;
-      Ax : T_Acc;
-      Ay : T_Acc;
-      Az : T_Acc;
-      Mx : T_Mag;
-      My : T_Mag;
-      Mz : T_Mag;
-      Dt : T_Delta_Time)
+   procedure Update_Q
+     (Gx : IMU.T_Rate;
+      Gy : IMU.T_Rate;
+      Gz : IMU.T_Rate;
+      Ax : IMU.T_Acc;
+      Ay : IMU.T_Acc;
+      Az : IMU.T_Acc;
+      Mx : IMU.T_Mag;
+      My : IMU.T_Mag;
+      Mz : IMU.T_Mag;
+      Dt : Types.T_Delta_Time)
    is
       --  Translate rates in degree to radians
-      Rad_Gx : constant T_Rate_Rad := Gx * Pi / 180.0;
-      Rad_Gy : constant T_Rate_Rad := Gy * Pi / 180.0;
-      Rad_Gz : constant T_Rate_Rad := Gz * Pi / 180.0;
+      Rad_Gx : constant IMU.T_Rate_Rad := Gx * Pi / 180.0;
+      Rad_Gy : constant IMU.T_Rate_Rad := Gy * Pi / 180.0;
+      Rad_Gz : constant IMU.T_Rate_Rad := Gz * Pi / 180.0;
 
    begin
       Mahony_Update_Q
@@ -435,16 +438,16 @@ is
          Ax, Ay, Az,
          Mx, My, Mz,
          Dt);
-   end SensFusion6_Update_Q;
+   end Update_Q;
 
-   -------------------------------
-   -- SensFusion6_Get_Euler_RPY --
-   -------------------------------
+   -------------------
+   -- Get_Euler_RPY --
+   -------------------
 
-   procedure SensFusion6_Get_Euler_RPY
-     (Euler_Roll_Actual  : out T_Degrees;
-      Euler_Pitch_Actual : out T_Degrees;
-      Euler_Yaw_Actual   : out T_Degrees)
+   procedure Get_Euler_RPY
+     (Euler_Roll_Actual  : out Types.T_Degrees;
+      Euler_Pitch_Actual : out Types.T_Degrees;
+      Euler_Yaw_Actual   : out Types.T_Degrees)
    is
       Grav_X : Float;
       Grav_Y : Float;
@@ -455,7 +458,7 @@ is
       Grav_Y := 2.0 * (Q0 * Q1 + Q2 * Q3);
       Grav_Z := Q0 * Q0 - Q1 * Q1 - Q2 * Q2 + Q3 * Q3;
 
-      Grav_X := Saturate (Grav_X, -1.0, 1.0);
+      Grav_X := Safety.Saturate (Grav_X, -1.0, 1.0);
 
       Euler_Yaw_Actual :=
         Atan (2.0 * (Q0 * Q3 + Q1 * Q2),
@@ -463,16 +466,16 @@ is
       --  Pitch seems to be inverted
       Euler_Pitch_Actual := Asin (Grav_X) * 180.0 / Pi;
       Euler_Roll_Actual := Atan (Grav_Y, Grav_Z) * 180.0 / Pi;
-   end SensFusion6_Get_Euler_RPY;
+   end Get_Euler_RPY;
 
-   ------------------------------------------
-   -- SensFusion6_Get_AccZ_Without_Gravity --
-   ------------------------------------------
+   ------------------------------
+   -- Get_AccZ_Without_Gravity --
+   ------------------------------
 
-   function SensFusion6_Get_AccZ_Without_Gravity
-     (Ax : T_Acc;
-      Ay : T_Acc;
-      Az : T_Acc) return Float
+   function Get_AccZ_Without_Gravity
+     (Ax : IMU.T_Acc;
+      Ay : IMU.T_Acc;
+      Az : IMU.T_Acc) return Float
    is
       Grav_X : Float range -4.0 .. 4.0;
       Grav_Y : Float range -4.0 .. 4.0;
@@ -489,6 +492,6 @@ is
       --  Return vertical acceleration without gravity
       --  (A dot G) / |G| - 1G (|G| = 1) -> (A dot G) - 1G
       return (Ax * Grav_X + Ay * Grav_Y + Az * Grav_Z) - 1.0;
-   end SensFusion6_Get_AccZ_Without_Gravity;
+   end Get_AccZ_Without_Gravity;
 
 end SensFusion6;

@@ -29,98 +29,99 @@
 
 with Ada.Unchecked_Conversion;
 
-with Crazyflie_Config;                   use Crazyflie_Config;
+with Crazyflie_Config;
 
 with LEDS;
 
 package body Radiolink is
 
-   Red_L   : LEDS.Flasher (LEDS.LED_Red_L'Access);
+   Red_L   : LEDS.Flasher (LEDS.Red_L'Access);
    --  Indicate we've transmitted a packet.
 
-   Green_L   : LEDS.Flasher (LEDS.LED_Green_L'Access);
+   Green_L   : LEDS.Flasher (LEDS.Green_L'Access);
    --  Indicate we've received a packet.
 
    --------------------
-   -- Radiolink_Init --
+   -- Init --
    --------------------
 
-   procedure Radiolink_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
-      Syslink_Init;
+      Syslink.Init;
 
-      Radiolink_Set_Channel (RADIO_CHANNEL);
-      Radiolink_Set_Data_Rate (RADIO_DATARATE);
-      Radiolink_Set_Address (RADIO_ADDRESS);
+      Set_Channel (Crazyflie_Config.RADIO_CHANNEL);
+      Set_Data_Rate (Crazyflie_Config.RADIO_DATARATE);
+      Set_Address (Crazyflie_Config.RADIO_ADDRESS);
 
       Is_Init := True;
-   end Radiolink_Init;
+   end Init;
 
    -----------------------------
-   -- Radiolink_Set_Data_Rate --
+   -- Set_Data_Rate --
    -----------------------------
 
-   procedure Radiolink_Set_Data_Rate (Data_Rate : T_Uint8)
+   procedure Set_Data_Rate (Data_Rate : Types.T_Uint8)
    is
-      Sl_Packet : Syslink_Packet;
+      Sl_Packet : Syslink.Packet;
    begin
-      Sl_Packet.Slp_Type := SYSLINK_RADIO_DATARATE;
+      Sl_Packet.Slp_Type := Syslink.RADIO_DATARATE;
       Sl_Packet.Length := 1;
       Sl_Packet.Data (1) := Data_Rate;
-      Syslink_Send_Packet (Sl_Packet);
-   end Radiolink_Set_Data_Rate;
+      Syslink.Send_Packet (Sl_Packet);
+   end Set_Data_Rate;
 
    ---------------------------
-   -- Radiolink_Set_Channel --
+   -- Set_Channel --
    ---------------------------
 
-   procedure Radiolink_Set_Channel (Channel : T_Uint8)
+   procedure Set_Channel (Channel : Types.T_Uint8)
    is
-      Sl_Packet : Syslink_Packet;
+      Sl_Packet : Syslink.Packet;
    begin
-      Sl_Packet.Slp_Type := SYSLINK_RADIO_CHANNEL;
+      Sl_Packet.Slp_Type := Syslink.RADIO_CHANNEL;
       Sl_Packet.Length := 1;
       Sl_Packet.Data (1) := Channel;
-      Syslink_Send_Packet (Sl_Packet);
-   end Radiolink_Set_Channel;
+      Syslink.Send_Packet (Sl_Packet);
+   end Set_Channel;
 
    ---------------------------
-   -- Radiolink_Set_Address --
+   -- Set_Address --
    ---------------------------
 
-   procedure Radiolink_Set_Address (Address : T_Uint64)
+   procedure Set_Address (Address : Types.T_Uint64)
    is
-      Sl_Packet : Syslink_Packet;
-      subtype As_Bytes is T_Uint8_Array (1 .. 8);
-      function Convert is new Ada.Unchecked_Conversion (T_Uint64, As_Bytes);
+      Sl_Packet : Syslink.Packet;
+      subtype As_Bytes is Types.T_Uint8_Array (1 .. 8);
+      function Convert is new Ada.Unchecked_Conversion (Types.T_Uint64,
+                                                        As_Bytes);
       Address_As_Bytes : constant As_Bytes := Convert (Address);
    begin
-      Sl_Packet.Slp_Type := SYSLINK_RADIO_ADDRESS;
+      Sl_Packet.Slp_Type := Syslink.RADIO_ADDRESS;
       Sl_Packet.Length := 5;
       Sl_Packet.Data (1 .. 5) := Address_As_Bytes (1 .. 5);
-      Syslink_Send_Packet (Sl_Packet);
-   end Radiolink_Set_Address;
+      Syslink.Send_Packet (Sl_Packet);
+   end Set_Address;
 
    ---------------------------------------
-   -- Radiolink_Receive_Packet_Blocking --
+   -- Receive_Packet_Blocking --
    ---------------------------------------
 
-   procedure Radiolink_Receive_Packet_Blocking (Packet : out CRTP_Packet) is
+   procedure Receive_Packet_Blocking (Packet : out CRTP.Packet) is
    begin
       Rx_Queue.Await_Item_To_Dequeue (Packet);
-   end Radiolink_Receive_Packet_Blocking;
+   end Receive_Packet_Blocking;
 
    ---------------------------
-   -- Radiolink_Send_Packet --
+   -- Send_Packet --
    ---------------------------
 
-   function Radiolink_Send_Packet (Packet : CRTP_Packet) return Boolean
+   function Send_Packet (Packet : CRTP.Packet) return Boolean
    is
-      Sl_Packet : Syslink_Packet;
+      Sl_Packet : Syslink.Packet;
       Has_Succeed : Boolean;
 
       ------------------------------
@@ -128,33 +129,38 @@ package body Radiolink is
       ------------------------------
 
       function CRTP_Raw_To_Syslink_Data is new Ada.Unchecked_Conversion
-        (CRTP_Raw, Syslink_Data);
+        (CRTP.Raw_T, Syslink.Syslink_Data);
+
+      use type Types.T_Uint8;
    begin
       Sl_Packet.Length := Packet.Size + 1;
-      Sl_Packet.Slp_Type := SYSLINK_RADIO_RAW;
-      Sl_Packet.Data := CRTP_Raw_To_Syslink_Data (Packet.Raw);
+      Sl_Packet.Slp_Type := Syslink.RADIO_RAW;
+      Sl_Packet.Data := CRTP_Raw_To_Syslink_Data (Packet.Raw_Pkt);
 
       --  Try to enqueue the Syslink packet
       Tx_Queue.Enqueue_Item (Sl_Packet, Has_Succeed);
 
       return Has_Succeed;
-   end Radiolink_Send_Packet;
+   end Send_Packet;
 
    --------------------------------
-   -- Radiolink_Syslink_Dispatch --
+   -- Syslink_Dispatch --
    --------------------------------
 
-   procedure Radiolink_Syslink_Dispatch (Rx_Sl_Packet : Syslink_Packet)
+   procedure Syslink_Dispatch (Rx_Sl_Packet : Syslink.Packet)
    is
-      Tx_Sl_Packet   : Syslink_Packet;
-      Rx_CRTP_Packet : CRTP_Packet;
+      Tx_Sl_Packet   : Syslink.Packet;
+      Rx_CRTP_Packet : CRTP.Packet;
       Has_Succeed    : Boolean;
+
+      use type Types.T_Uint8;
+      use type Syslink.Packet_Type;
    begin
-      if Rx_Sl_Packet.Slp_Type = SYSLINK_RADIO_RAW then
+      if Rx_Sl_Packet.Slp_Type = Syslink.RADIO_RAW then
          Rx_CRTP_Packet.Size := Rx_Sl_Packet.Length - 1;
          Rx_CRTP_Packet.Header := Rx_Sl_Packet.Data (1);
          Rx_CRTP_Packet.Data_2 :=
-           CRTP_Data (Rx_Sl_Packet.Data (2 .. Rx_Sl_Packet.Data'Length));
+           CRTP.Data_T (Rx_Sl_Packet.Data (2 .. Rx_Sl_Packet.Data'Length));
 
          --  Enqueue the received packet
          Rx_Queue.Enqueue_Item (Rx_CRTP_Packet, Has_Succeed);
@@ -167,12 +173,12 @@ package body Radiolink is
 
          if Has_Succeed then
             Red_L.Set;
-            Syslink_Send_Packet (Tx_Sl_Packet);
+            Syslink.Send_Packet (Tx_Sl_Packet);
          end if;
-      elsif Rx_Sl_Packet.Slp_Type = SYSLINK_RADIO_RSSI then
+      elsif Rx_Sl_Packet.Slp_Type = Syslink.RADIO_RSSI then
          --  Extract RSSI sample sent from Radio
          RSSI := Rx_Sl_Packet.Data (1);
       end if;
-   end Radiolink_Syslink_Dispatch;
+   end Syslink_Dispatch;
 
 end Radiolink;

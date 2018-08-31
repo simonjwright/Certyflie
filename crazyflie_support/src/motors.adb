@@ -27,12 +27,12 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Real_Time;    use Ada.Real_Time;
+with Ada.Real_Time;
 
-with STM32.Board;     use STM32.Board;
+with STM32.Board;
 
-with Power_Management; use Power_Management;
-with Safety;           use Safety;
+with Power_Management;
+with Safety;
 
 package body Motors
 with Refined_State => (Motors_State => (M1_Modulator,
@@ -41,11 +41,11 @@ with Refined_State => (Motors_State => (M1_Modulator,
                                         M4_Modulator))
 is
 
-   -----------------
-   -- Motors_Init --
-   -----------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Motors_Init is
+   procedure Init is
    begin
       --  Initialize the pwm generators
 
@@ -54,30 +54,32 @@ is
       --  this timer is shared among three motors, the next two calls should
       --  not configure the timer (hence Configure_Generator is False).
 
-      Configure_PWM_Timer (MOTOR_123_Timer'Access, MOTORS_PWM_FREQUENCY);
-      Configure_PWM_Timer (MOTOR_4_Timer'Access, MOTORS_PWM_FREQUENCY);
+      Configure_PWM_Timer (STM32.Board.MOTOR_123_Timer'Access,
+                           MOTORS_PWM_FREQUENCY);
+      Configure_PWM_Timer (STM32.Board.MOTOR_4_Timer'Access,
+                           MOTORS_PWM_FREQUENCY);
 
       --  Attach the PWM modulators to the corresponding channels
 
-      M1_Modulator.Attach_PWM_Channel (MOTOR_123_Timer'Access,
-                                       MOTOR_1_Channel,
-                                       MOTOR_1,
-                                       MOTOR_1_AF);
+      M1_Modulator.Attach_PWM_Channel (STM32.Board.MOTOR_123_Timer'Access,
+                                       STM32.Board.MOTOR_1_Channel,
+                                       STM32.Board.MOTOR_1,
+                                       STM32.Board.MOTOR_1_AF);
 
-      M2_Modulator.Attach_PWM_Channel (MOTOR_123_Timer'Access,
-                                       MOTOR_2_Channel,
-                                       MOTOR_2,
-                                       MOTOR_2_AF);
+      M2_Modulator.Attach_PWM_Channel (STM32.Board.MOTOR_123_Timer'Access,
+                                       STM32.Board.MOTOR_2_Channel,
+                                       STM32.Board.MOTOR_2,
+                                       STM32.Board.MOTOR_2_AF);
 
-      M3_Modulator.Attach_PWM_Channel (MOTOR_123_Timer'Access,
-                                       MOTOR_3_Channel,
-                                       MOTOR_3,
-                                       MOTOR_3_AF);
+      M3_Modulator.Attach_PWM_Channel (STM32.Board.MOTOR_123_Timer'Access,
+                                       STM32.Board.MOTOR_3_Channel,
+                                       STM32.Board.MOTOR_3,
+                                       STM32.Board.MOTOR_3_AF);
 
-      M4_Modulator.Attach_PWM_Channel (MOTOR_4_Timer'Access,
-                                       MOTOR_4_Channel,
-                                       MOTOR_4,
-                                       MOTOR_4_AF);
+      M4_Modulator.Attach_PWM_Channel (STM32.Board.MOTOR_4_Timer'Access,
+                                       STM32.Board.MOTOR_4_Channel,
+                                       STM32.Board.MOTOR_4,
+                                       STM32.Board.MOTOR_4_AF);
 
       --  And then enable the channels
       M1_Modulator.Enable_Output;
@@ -86,24 +88,25 @@ is
       M4_Modulator.Enable_Output;
 
       --  Reset all the motors power to zero
-      Motors_Reset;
-   end Motors_Init;
+      Reset;
+   end Init;
 
-   ---------------------
-   -- Motor_Set_Power --
-   ---------------------
+   ---------------
+   -- Set_Power --
+   ---------------
 
-   procedure Motor_Set_Power
+   procedure Set_Power
      (ID    : Motor_ID;
-      Power : T_Uint16)
+      Power : Types.T_Uint16)
    is
       Power_Percentage_F : Float;
       Power_Percentage   : Percentage;
    begin
       Power_Percentage_F :=
-        Saturate ((Float (Power) / Float (T_Uint16'Last)) * 100.0,
-                  0.0,
-                  100.0);
+        Safety.Saturate
+          ((Float (Power) / Float (Types.T_Uint16'Last)) * 100.0,
+           0.0,
+           100.0);
       Power_Percentage := Percentage (Power_Percentage_F);
 
       case ID is
@@ -116,18 +119,18 @@ is
          when MOTOR_M4 =>
             Set_Duty_Cycle (M4_Modulator, Power_Percentage);
       end case;
-   end Motor_Set_Power;
+   end Set_Power;
 
-   -------------------------------------------
-   -- Motor_Set_Power_With_Bat_Compensation --
-   -------------------------------------------
+   -------------------------------------
+   -- Set_Power_With_Bat_Compensation --
+   -------------------------------------
 
-   procedure Motor_Set_Power_With_Bat_Compensation
+   procedure Set_Power_With_Bat_Compensation
      (ID    : Motor_ID;
-      Power : T_Uint16)
+      Power : Types.T_Uint16)
    is
       Tmp_Thrust         : constant Float :=
-                             (Float (Power) / Float (T_Uint16'Last)) * 60.0;
+        (Float (Power) / Float (Types.T_Uint16'Last)) * 60.0;
       Volts              : constant Float :=
                    -0.0006239 * Tmp_Thrust * Tmp_Thrust + 0.088 * Tmp_Thrust;
       Supply_Voltage     : Float;
@@ -135,10 +138,10 @@ is
       Power_Percentage   : Percentage;
 
    begin
-      Supply_Voltage := Power_Management_Get_Battery_Voltage;
+      Supply_Voltage := Power_Management.Get_Battery_Voltage;
       Power_Percentage_F := (Volts / Supply_Voltage) * 100.0;
       Power_Percentage_F :=
-        Saturate (Power_Percentage_F, 0.0, 100.0);
+        Safety.Saturate (Power_Percentage_F, 0.0, 100.0);
       Power_Percentage := Percentage (Power_Percentage_F);
 
       case ID is
@@ -151,38 +154,39 @@ is
          when MOTOR_M4 =>
             Set_Duty_Cycle (M4_Modulator, Power_Percentage);
       end case;
-   end Motor_Set_Power_With_Bat_Compensation;
+   end Set_Power_With_Bat_Compensation;
 
-   -----------------
-   -- Motors_Test --
-   -----------------
+   ----------
+   -- Test --
+   ----------
 
-   function Motors_Test return Boolean
+   function Test return Boolean
    is
-      Next_Period_1 : Time;
-      Next_Period_2 : Time;
+      Next_Period_1 : Ada.Real_Time.Time;
+      Next_Period_2 : Ada.Real_Time.Time;
+      use Ada.Real_Time;
    begin
       for Motor in Motor_ID loop
          Next_Period_1 := Clock + Milliseconds (MOTORS_TEST_ON_TIME_MS);
-         Motor_Set_Power (Motor, 10_000);
+         Set_Power (Motor, 10_000);
          delay until (Next_Period_1);
          Next_Period_2 := Clock + Milliseconds (MOTORS_TEST_DELAY_TIME_MS);
-         Motor_Set_Power (Motor, 0);
+         Set_Power (Motor, 0);
          delay until (Next_Period_2);
       end loop;
 
       return True;
-   end Motors_Test;
+   end Test;
 
-   ------------------
-   -- Motors_Reset --
-   ------------------
+   -----------
+   -- Reset --
+   -----------
 
-   procedure Motors_Reset is
+   procedure Reset is
    begin
       for Motor in Motor_ID loop
-         Motor_Set_Power (Motor, 0);
+         Set_Power (Motor, 0);
       end loop;
-   end Motors_Reset;
+   end Reset;
 
 end Motors;

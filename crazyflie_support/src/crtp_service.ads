@@ -27,37 +27,37 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with CRTP; use CRTP;
+private with CRTP;
 
 package CRTP_Service is
-
-   --  Types
-
-   --  Type representing all the available commands for
-   --  CRTP service module.
-   type CRTP_Service_Command is (Link_Echo,
-                                 Link_Source,
-                                 Link_Sink,
-                                 Link_Other);
-   for CRTP_Service_Command use (Link_Echo   => 16#00#,
-                                 Link_Source => 16#01#,
-                                 Link_Sink   => 16#02#,
-                                 Link_Other  => 16#03#);
-   for CRTP_Service_Command'Size use 2;
 
    --  Procedures and functions
 
    --  Initialize CRTP Service module.
-   procedure CRTP_Service_Init;
-
-   --  Handler called when a CRTP packet is received in the CRTP Service
-   --  port queue.
-   procedure CRTP_Service_Handler (Packet : CRTP_Packet);
+   procedure Init;
 
 private
 
    --  Global variable and constants
 
    Is_Init             : Boolean := False;
+
+   --  Types
+
+   --  Type representing all the available commands for
+   --  CRTP service module.
+   type Command is (Link_Echo,
+                    Link_Source,
+                    Link_Sink,
+                    Link_Other);
+   for Command use (Link_Echo   => 16#00#,
+                    Link_Source => 16#01#,
+                    Link_Sink   => 16#02#,
+                    Link_Other  => 16#03#);
+   for Command'Size use 2;
+
+   --  Handler called when a CRTP packet is received in the CRTP Service
+   --  port queue.
+   procedure Handler (Packet : CRTP.Packet);
 
 end CRTP_Service;

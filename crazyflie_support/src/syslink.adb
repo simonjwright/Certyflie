@@ -27,51 +27,52 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Power_Management; use Power_Management;
-with Radiolink;        use Radiolink;
+with Power_Management;
+with Radiolink;
 
 package body Syslink is
 
-   ------------------
-   -- Syslink_Init --
-   ------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Syslink_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
-      UART_Syslink_Init;
+      UART_Syslink.Init;
 
-      Set_True (Syslink_Access);
+      Ada.Synchronous_Task_Control.Set_True (Syslink_Access);
 
       Is_Init := True;
-   end Syslink_Init;
+   end Init;
 
-   ------------------
-   -- Syslink_Test --
-   ------------------
+   ----------
+   -- Test --
+   ----------
 
-   function Syslink_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Init;
-   end Syslink_Test;
+   end Test;
 
-   -------------------------
-   -- Syslink_Send_Packet --
-   -------------------------
+   -----------------
+   -- Send_Packet --
+   -----------------
 
-   procedure Syslink_Send_Packet (Sl_Packet : Syslink_Packet)
+   procedure Send_Packet (Sl_Packet : Packet)
    is
       Data_Size : Natural;
-      Chk_Sum   : array (1 .. 2) of T_Uint8 := (others => 0);
+      Chk_Sum   : array (1 .. 2) of Types.T_Uint8 := (others => 0);
+      use type Types.T_Uint8;
    begin
-      Suspend_Until_True (Syslink_Access);
+      Ada.Synchronous_Task_Control.Suspend_Until_True (Syslink_Access);
 
-      Tx_Buffer (1) := SYSLINK_START_BYTE1;
-      Tx_Buffer (2) := SYSLINK_START_BYTE2;
-      Tx_Buffer (3) := Syslink_Packet_Type'Enum_Rep (Sl_Packet.Slp_Type);
+      Tx_Buffer (1) := START_BYTE1;
+      Tx_Buffer (2) := START_BYTE2;
+      Tx_Buffer (3) := Packet_Type'Enum_Rep (Sl_Packet.Slp_Type);
       Tx_Buffer (4) := Sl_Packet.Length;
 
       Data_Size := Natural (Sl_Packet.Length) + 6;
@@ -86,66 +87,69 @@ package body Syslink is
       Tx_Buffer (Data_Size - 1) := Chk_Sum (1);
       Tx_Buffer (Data_Size) := Chk_Sum (2);
 
-      UART_Send_DMA_Data_Blocking (Data_Size, Tx_Buffer);
-      Set_True (Syslink_Access);
-   end Syslink_Send_Packet;
+      UART_Syslink.Send_DMA_Data_Blocking (Data_Size, Tx_Buffer);
+      Ada.Synchronous_Task_Control.Set_True (Syslink_Access);
+   end Send_Packet;
 
-   -----------------------------------
-   -- Syslink_Route_Incoming_Packet --
-   -----------------------------------
+   ---------------------------
+   -- Route_Incoming_Packet --
+   ---------------------------
 
-   procedure Syslink_Route_Incoming_Packet (Rx_Sl_Packet : Syslink_Packet)
+   procedure Route_Incoming_Packet (Rx_Sl_Packet : Packet)
    is
-      Group_Type_Raw : T_Uint8;
-      Group_Type     : Syslink_Packet_Group_Type;
+      Group_Type_Raw : Types.T_Uint8;
+      Group_Type     : Packet_Group_Type;
 
       ------------------------------------------
       -- T_Uint8_To_Syslink_Packet_Group_Type --
       ------------------------------------------
 
       function T_Uint8_To_Syslink_Packet_Group_Type is
-        new Ada.Unchecked_Conversion (T_Uint8, Syslink_Packet_Group_Type);
+        new Ada.Unchecked_Conversion (Types.T_Uint8,
+                                      Packet_Group_Type);
 
+      use type Types.T_Uint8;
    begin
-      Group_Type_Raw := Syslink_Packet_Type'Enum_Rep (Rx_Sl_Packet.Slp_Type)
-        and SYSLINK_GROUP_MASK;
+      Group_Type_Raw := Packet_Type'Enum_Rep (Rx_Sl_Packet.Slp_Type)
+        and GROUP_MASK;
       Group_Type := T_Uint8_To_Syslink_Packet_Group_Type (Group_Type_Raw);
 
       case Group_Type is
-         when SYSLINK_RADIO_GROUP =>
-            Radiolink_Syslink_Dispatch (Rx_Sl_Packet);
+         when RADIO_GROUP =>
+            Radiolink.Syslink_Dispatch (Rx_Sl_Packet);
             --  TODO: Dispatch the syslink packets to the other modules
             --  when they will be implemented
-         when SYSLINK_PM_GROUP =>
-            Power_Management_Syslink_Update (Rx_Sl_Packet);
+         when PM_GROUP =>
+            Power_Management.Syslink_Update (Rx_Sl_Packet);
          when others =>
             null;
       end case;
-   end Syslink_Route_Incoming_Packet;
+   end Route_Incoming_Packet;
 
-   -----------------------
-   -- Syslink_Task_Type --
-   -----------------------
+   ---------------
+   -- Task_Type --
+   ---------------
 
-   task body Syslink_Task_Type is
-      Rx_State     : Syslink_Rx_State := WAIT_FOR_FIRST_START;
-      Rx_Sl_Packet : Syslink_Packet;
-      Rx_Byte      : T_Uint8;
+   task body Task_Type is
+      Rx_State     : Rx_States := WAIT_FOR_FIRST_START;
+      Rx_Sl_Packet : Packet;
+      Rx_Byte      : Types.T_Uint8;
       Data_Index   : Positive := 1;
-      Chk_Sum      : array (1 .. 2) of T_Uint8;
+      Chk_Sum      : array (1 .. 2) of Types.T_Uint8;
+      use type Types.T_Uint8;
    begin
       loop
-         UART_Get_Data_Blocking (Rx_Byte);
+         UART_Syslink.Get_Data_Blocking (Rx_Byte);
 
          case Rx_State is
             when WAIT_FOR_FIRST_START =>
 
-               Rx_State := (if Rx_Byte = SYSLINK_START_BYTE1 then
+               Rx_State := (if Rx_Byte = START_BYTE1 then
                                WAIT_FOR_SECOND_START
                             else
                                WAIT_FOR_FIRST_START);
             when WAIT_FOR_SECOND_START =>
-               Rx_State := (if Rx_Byte = SYSLINK_START_BYTE2 then
+               Rx_State := (if Rx_Byte = START_BYTE2 then
                                WAIT_FOR_TYPE
                             else
                                WAIT_FOR_FIRST_START);
@@ -155,7 +159,7 @@ package body Syslink is
                Rx_Sl_Packet.Slp_Type := T_Uint8_To_Slp_Type (Rx_Byte);
                Rx_State := WAIT_FOR_LENGTH;
             when WAIT_FOR_LENGTH =>
-               if Rx_Byte <= SYSLINK_MTU then
+               if Rx_Byte <= MTU then
                   Rx_Sl_Packet.Length := Rx_Byte;
                   Chk_Sum (1) := Chk_Sum (1) + Rx_Byte;
                   Chk_Sum (2) := Chk_Sum (2) + Chk_Sum (1);
@@ -172,7 +176,7 @@ package body Syslink is
                Chk_Sum (1) := Chk_Sum (1) + Rx_Byte;
                Chk_Sum (2) := Chk_Sum (2) + Chk_Sum (1);
                Data_Index := Data_Index + 1;
-               if T_Uint8 (Data_Index) > Rx_Sl_Packet.Length then
+               if Types.T_Uint8 (Data_Index) > Rx_Sl_Packet.Length then
                   Rx_State := WAIT_FOR_CHKSUM_1;
                end if;
             when WAIT_FOR_CHKSUM_1 =>
@@ -185,13 +189,13 @@ package body Syslink is
                end if;
             when WAIT_FOR_CHKSUM_2 =>
                if Chk_Sum (2) = Rx_Byte then
-                  Syslink_Route_Incoming_Packet (Rx_Sl_Packet);
+                  Route_Incoming_Packet (Rx_Sl_Packet);
                else
                   Dropped_Packets := Dropped_Packets + 1;
                end if;
                Rx_State := WAIT_FOR_FIRST_START;
          end case;
       end loop;
-   end Syslink_Task_Type;
+   end Task_Type;
 
 end Syslink;

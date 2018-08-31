@@ -32,10 +32,10 @@ package Communication is
    --  Procedures and functions
 
    --  Initialize all the communication related modules.
-   procedure Communication_Init;
+   procedure Init;
 
    --  Test if the communication modules is initialized.
-   function Communication_Test return Boolean;
+   function Test return Boolean;
 
 private
 

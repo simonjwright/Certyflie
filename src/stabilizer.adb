@@ -27,8 +27,8 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Config; use Config;
-with Safety; use Safety;
+with Config;
+with Safety;
 with Log;
 
 package body Stabilizer
@@ -107,113 +107,87 @@ is
    is
       Dummy : Boolean;
    begin
-      Log.Add_Log_Variable (Group    => "motor",
-                            Name     => "m1",
-                            Log_Type => Log.LOG_UINT16,
-                            Variable => Motor_Power_M1'Address,
-                            Success  => Dummy);
-      Log.Add_Log_Variable (Group    => "motor",
-                            Name     => "m2",
-                            Log_Type => Log.LOG_UINT16,
-                            Variable => Motor_Power_M2'Address,
-                            Success  => Dummy);
-      Log.Add_Log_Variable (Group    => "motor",
-                            Name     => "m3",
-                            Log_Type => Log.LOG_UINT16,
-                            Variable => Motor_Power_M3'Address,
-                            Success  => Dummy);
-      Log.Add_Log_Variable (Group    => "motor",
-                            Name     => "m4",
-                            Log_Type => Log.LOG_UINT16,
-                            Variable => Motor_Power_M4'Address,
-                            Success  => Dummy);
+      Log.Add_Variable (Group    => "motor",
+                        Name     => "m1",
+                        Typ => Log.UINT16,
+                        Variable => Motor_Power_M1'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "motor",
+                        Name     => "m2",
+                        Typ => Log.UINT16,
+                        Variable => Motor_Power_M2'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "motor",
+                        Name     => "m3",
+                        Typ => Log.UINT16,
+                        Variable => Motor_Power_M3'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "motor",
+                        Name     => "m4",
+                        Typ => Log.UINT16,
+                        Variable => Motor_Power_M4'Address,
+                        Success  => Dummy);
 
-      Log.Add_Log_Variable (Group    => "stabilizer",
-                            Name     => "roll",
-                            Log_Type => Log.LOG_FLOAT,
-                            Variable => Euler_Roll_Actual'Address,
-                            Success  => Dummy);
-      Log.Add_Log_Variable (Group    => "stabilizer",
-                            Name     => "pitch",
-                            Log_Type => Log.LOG_FLOAT,
-                            Variable => Euler_Pitch_Actual'Address,
-                            Success  => Dummy);
-      Log.Add_Log_Variable (Group    => "stabilizer",
-                            Name     => "yaw",
-                            Log_Type => Log.LOG_FLOAT,
-                            Variable => Euler_Yaw_Actual'Address,
-                            Success  => Dummy);
-      Log.Add_Log_Variable (Group    => "stabilizer",
-                            Name     => "thrust",
-                            Log_Type => Log.LOG_UINT16,
-                            Variable => Actuator_Thrust'Address,
-                            Success  => Dummy);
+      Log.Add_Variable (Group    => "stabilizer",
+                        Name     => "roll",
+                        Typ      => Log.FLOAT,
+                        Variable => Euler_Roll_Actual'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "stabilizer",
+                        Name     => "pitch",
+                        Typ      => Log.FLOAT,
+                        Variable => Euler_Pitch_Actual'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "stabilizer",
+                        Name     => "yaw",
+                        Typ      => Log.FLOAT,
+                        Variable => Euler_Yaw_Actual'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "stabilizer",
+                        Name     => "thrust",
+                        Typ      => Log.UINT16,
+                        Variable => Actuator_Thrust'Address,
+                        Success  => Dummy);
    end Init_Logging;
-
-   ---------------------
-   -- Stabilizer_Init --
-   ---------------------
-
-   procedure Stabilizer_Init is
-   begin
-      if Is_Init then
-         return;
-      end if;
-
-      Controller_Init;
-
-      Init_Logging;
-
-      Is_Init := True;
-   end Stabilizer_Init;
-
-   ---------------------
-   -- Stabilizer_Test --
-   ---------------------
-
-   function Stabilizer_Test return Boolean is
-   begin
-      return Is_Init;
-   end Stabilizer_Test;
 
    ------------------
    -- Limit_Thrust --
    ------------------
 
-   function Limit_Thrust (Value : T_Int32) return T_Uint16
+   function Limit_Thrust (Value : Types.T_Int32) return Types.T_Uint16
    is
-      use type T_Int32;
-      Res : T_Uint16;
+      use type Types.T_Int32;
+      Res : Types.T_Uint16;
    begin
-      if Value > T_Int32 (T_Uint16'Last) then
-         Res := T_Uint16'Last;
+      if Value > Types.T_Int32 (Types.T_Uint16'Last) then
+         Res := Types.T_Uint16'Last;
       elsif Value < 0 then
          Res := 0;
       else
-         pragma Assert (Value <= T_Int32 (T_Uint16'Last));
-         Res := T_Uint16 (Value);
+         pragma Assert (Value <= Types.T_Int32 (Types.T_Uint16'Last));
+         Res := Types.T_Uint16 (Value);
       end if;
 
       return Res;
    end Limit_Thrust;
 
-   ---------------------------------
-   -- Stabilizer_Distribute_Power --
-   ---------------------------------
+   ----------------------
+   -- Distribute_Power --
+   ----------------------
 
-   procedure Stabilizer_Distribute_Power
-     (Thrust : T_Uint16;
-      Roll   : T_Int16;
-      Pitch  : T_Int16;
-      Yaw    : T_Int16)
+   procedure Distribute_Power
+     (Thrust : Types.T_Uint16;
+      Roll   : Types.T_Int16;
+      Pitch  : Types.T_Int16;
+      Yaw    : Types.T_Int16)
    is
-      use type T_Int32;
-      T : constant T_Int32 := T_Int32 (Thrust);
-      R : T_Int32 := T_Int32 (Roll);
-      P : T_Int32 := T_Int32 (Pitch);
-      Y : constant T_Int32 := T_Int32 (Yaw);
+      use type Types.T_Int32;
+      T : constant Types.T_Int32 := Types.T_Int32 (Thrust);
+      R : Types.T_Int32 := Types.T_Int32 (Roll);
+      P : Types.T_Int32 := Types.T_Int32 (Pitch);
+      Y : constant Types.T_Int32 := Types.T_Int32 (Yaw);
    begin
-      if QUAD_FORMATION_X then
+      if Config.QUAD_FORMATION_X then
          R := R / 2;
          P := P / 2;
 
@@ -228,121 +202,124 @@ is
          Motor_Power_M4 := Limit_Thrust (T + R - Y);
       end if;
 
-      Motor_Set_Power_With_Bat_Compensation (MOTOR_M1, Motor_Power_M1);
-      Motor_Set_Power_With_Bat_Compensation (MOTOR_M2, Motor_Power_M2);
-      Motor_Set_Power_With_Bat_Compensation (MOTOR_M3, Motor_Power_M3);
-      Motor_Set_Power_With_Bat_Compensation (MOTOR_M4, Motor_Power_M4);
-   end Stabilizer_Distribute_Power;
+      Motors.Set_Power_With_Bat_Compensation (Motors.MOTOR_M1, Motor_Power_M1);
+      Motors.Set_Power_With_Bat_Compensation (Motors.MOTOR_M2, Motor_Power_M2);
+      Motors.Set_Power_With_Bat_Compensation (Motors.MOTOR_M3, Motor_Power_M3);
+      Motors.Set_Power_With_Bat_Compensation (Motors.MOTOR_M4, Motor_Power_M4);
+   end Distribute_Power;
 
-   --------------------------------
-   -- Stabilizer_Update_Attitude --
-   --------------------------------
+   ---------------------
+   -- Update_Attitude --
+   ---------------------
 
-   procedure Stabilizer_Update_Attitude is
+   procedure Update_Attitude is
    begin
-      SensFusion6_Update_Q (Gyro.X, Gyro.Y, Gyro.Z,
+      SensFusion6.Update_Q (Gyro.X, Gyro.Y, Gyro.Z,
                             Acc.X, Acc.Y, Acc.Z,
                             Mag.X, Mag.Y, Mag.Z,
                             FUSION_UPDATE_DT);
       --  Get Euler angles
-      SensFusion6_Get_Euler_RPY (Euler_Roll_Actual,
+      SensFusion6.Get_Euler_RPY (Euler_Roll_Actual,
                                  Euler_Pitch_Actual,
                                  Euler_Yaw_Actual);
       --  Vertical acceleration woithout gravity
-      Acc_WZ := SensFusion6_Get_AccZ_Without_Gravity (Acc.X,
-                                                      Acc.Y,
-                                                      Acc.Z);
+      Acc_WZ := SensFusion6.Get_AccZ_Without_Gravity (Acc.X, Acc.Y, Acc.Z);
       Acc_MAG := (Acc.X * Acc.X) + (Acc.Y * Acc.Y) + (Acc.Z * Acc.Z);
 
       --  Estimate vertical speed from acceleration and Saturate
       --  it within a limit
-      V_Speed := Saturate (V_Speed +
-                             Dead_Band (Acc_WZ, V_Acc_Deadband) *
-                             FUSION_UPDATE_DT,
-                           -V_Speed_Limit,
-                            V_Speed_Limit);
+      V_Speed := Safety.Saturate
+        (V_Speed
+         + Safety.Dead_Band (Acc_WZ, V_Acc_Deadband) * FUSION_UPDATE_DT,
+         -V_Speed_Limit,
+         V_Speed_Limit);
 
       --  Get the rate commands from the roll, pitch, yaw attitude PID's
-      Controller_Correct_Attitude_Pid (Euler_Roll_Actual,
+      Controller.Correct_Attitude_Pid (Euler_Roll_Actual,
                                        Euler_Pitch_Actual,
                                        Euler_Yaw_Actual,
                                        Euler_Roll_Desired,
                                        Euler_Pitch_Desired,
                                        -Euler_Yaw_Desired);
-      Controller_Get_Desired_Rate (Roll_Rate_Desired, Pitch_Rate_Desired,
+      Controller.Get_Desired_Rate (Roll_Rate_Desired, Pitch_Rate_Desired,
                                    Yaw_Rate_Desired);
-   end Stabilizer_Update_Attitude;
+   end Update_Attitude;
 
-   ----------------------------
-   -- Stabilizer_Update_Rate --
-   ----------------------------
+   -----------------
+   -- Update_Rate --
+   -----------------
 
-   procedure Stabilizer_Update_Rate is
+   procedure Update_Rate is
+      use type Commander.RPY_Type;
    begin
       --  If CF is in Rate mode, give the angles given by the pilot
       --  as input for the Rate PIDs
-      if Roll_Type = RATE then
+      if Roll_Type = Commander.RATE then
          Roll_Rate_Desired := Euler_Roll_Desired;
       end if;
 
-      if Pitch_Type = RATE then
+      if Pitch_Type = Commander.RATE then
          Pitch_Rate_Desired := Euler_Pitch_Desired;
       end if;
 
-      if Yaw_Type = RATE then
+      if Yaw_Type = Commander.RATE then
          Yaw_Rate_Desired := -Euler_Yaw_Desired;
       end if;
 
-      Controller_Correct_Rate_PID (Gyro.X, -Gyro.Y, Gyro.Z,
+      Controller.Correct_Rate_PID (Gyro.X, -Gyro.Y, Gyro.Z,
                                    Roll_Rate_Desired,
                                    Pitch_Rate_Desired,
                                    Yaw_Rate_Desired);
-      Controller_Get_Actuator_Output (Actuator_Roll,
+      Controller.Get_Actuator_Output (Actuator_Roll,
                                       Actuator_Pitch,
                                       Actuator_Yaw);
-   end Stabilizer_Update_Rate;
+   end Update_Rate;
 
-   --------------------------------
-   -- Stabilizer_Alt_Hold_Update --
-   --------------------------------
+   ---------------------
+   -- Alt_Hold_Update --
+   ---------------------
 
-   procedure Stabilizer_Alt_Hold_Update
+   procedure Alt_Hold_Update
    is
-      use type T_Int32;
       LPS25H_Data_Valid   : Boolean;
       Prev_Integ          : Float;
-      Baro_V_Speed        : T_Speed;
-      Alt_Hold_PID_Out    : T_Altitude;
-      Raw_Thrust          : T_Int16;
+      Baro_V_Speed        : Types.T_Speed;
+      Alt_Hold_PID_Out    : LPS25h.T_Altitude;
+      Raw_Thrust          : Types.T_Int16;
+      use type Types.T_Int32;
    begin
       --  Get altitude hold commands from the pilot
-      Commander_Get_Alt_Hold (Alt_Hold, Set_Alt_Hold, Alt_Hold_Change);
+      Commander.Get_Alt_Hold (Alt_Hold, Set_Alt_Hold, Alt_Hold_Change);
 
       --  Get barometer altitude estimations
-      LPS25h_Get_Data (Pressure, Temperature, Asl_Raw, LPS25H_Data_Valid);
+      LPS25h.LPS25h_Get_Data
+        (Pressure, Temperature, Asl_Raw, LPS25H_Data_Valid);
       if LPS25H_Data_Valid then
-         Asl := Saturate (Asl * Asl_Alpha + Asl_Raw * (1.0 - Asl_Alpha),
-                           T_Altitude'First,
-                           T_Altitude'Last);
-         Asl_Long := Saturate (Asl_Long * Asl_Alpha_Long
-                                + Asl_Raw * (1.0 - Asl_Alpha_Long),
-                                T_Altitude'First,
-                                T_Altitude'Last);
+         Asl := Safety.Saturate
+           (Asl * Asl_Alpha + Asl_Raw * (1.0 - Asl_Alpha),
+            LPS25h.T_Altitude'First,
+            LPS25h.T_Altitude'Last);
+         Asl_Long := Safety.Saturate
+           (Asl_Long * Asl_Alpha_Long + Asl_Raw * (1.0 - Asl_Alpha_Long),
+            LPS25h.T_Altitude'First,
+            LPS25h.T_Altitude'Last);
       end if;
 
       --  Estimate vertical speed based on successive barometer readings
-      V_Speed_ASL := Saturate (Dead_Band (Asl - Asl_Long,
-                                V_Speed_ASL_Deadband),
-                                -V_Speed_Limit, V_Speed_Limit);
+      V_Speed_ASL := Safety.Saturate
+        (Safety.Dead_Band (Asl - Asl_Long, V_Speed_ASL_Deadband),
+         -V_Speed_Limit,
+         V_Speed_Limit);
       --  Estimate vertical speed based on Acc - fused with baro
       --  to reduce drift
-      V_Speed := Saturate (V_Speed * V_Bias_Alpha +
-                              V_Speed_ASL * (1.0 - V_Bias_Alpha),
-                            -V_Speed_Limit, V_Speed_Limit);
+      V_Speed := Safety.Saturate
+        (V_Speed * V_Bias_Alpha + V_Speed_ASL * (1.0 - V_Bias_Alpha),
+         -V_Speed_Limit,
+         V_Speed_Limit);
       V_Speed_Acc := V_Speed;
 
       --  Reset Integral gain of PID controller if being charged
-      if not Power_Management_Is_Discharging then
+      if not Power_Management.Is_Discharging then
          Alt_Hold_PID.Integ := 0.0;
       end if;
 
@@ -355,81 +332,110 @@ is
          Prev_Integ := Alt_Hold_PID.Integ;
 
          --  Reset PID controller
-         Altitude_Pid.Pid_Init (Alt_Hold_PID,
-                                Asl,
-                                ALT_HOLD_KP,
-                                ALT_HOLD_KP,
-                                ALT_HOLD_KD,
-                                -DEFAULT_PID_INTEGRATION_LIMIT,
-                                DEFAULT_PID_INTEGRATION_LIMIT,
-                                ALTHOLD_UPDATE_DT);
+         Altitude_Pid.Init (Alt_Hold_PID,
+                            Asl,
+                            ALT_HOLD_KP,
+                            ALT_HOLD_KP,
+                            ALT_HOLD_KD,
+                            -Pid_Parameters.DEFAULT_INTEGRATION_LIMIT,
+                            Pid_Parameters.DEFAULT_INTEGRATION_LIMIT,
+                            ALTHOLD_UPDATE_DT);
 
          Alt_Hold_PID.Integ := Prev_Integ;
 
-         Altitude_Pid.Pid_Update (Alt_Hold_PID, Asl, False);
-         Alt_Hold_PID_Val := Saturate (Altitude_Pid.Pid_Get_Output
-                                       (Alt_Hold_PID),
-                                       T_Altitude'First,
-                                       T_Altitude'Last);
+         Altitude_Pid.Update (Alt_Hold_PID, Asl, False);
+         Alt_Hold_PID_Val := Safety.Saturate
+           (Altitude_Pid.Get_Output (Alt_Hold_PID),
+            LPS25h.T_Altitude'First,
+            LPS25h.T_Altitude'Last);
       end if;
 
       if Alt_Hold then
          --  Update the target altitude and the PID
-         Alt_Hold_Target := Saturate (Alt_Hold_Target +
-                                       Alt_Hold_Change / Alt_Hold_Change_SENS,
-                                       T_Altitude'First,
-                                       T_Altitude'Last);
-         Altitude_Pid.Pid_Set_Desired (Alt_Hold_PID, Alt_Hold_Target);
+         Alt_Hold_Target := Safety.Saturate
+           (Alt_Hold_Target + Alt_Hold_Change / Alt_Hold_Change_SENS,
+            LPS25h.T_Altitude'First,
+            LPS25h.T_Altitude'Last);
+         Altitude_Pid.Set_Desired (Alt_Hold_PID, Alt_Hold_Target);
 
          --  Compute error (current - target), limit the error
-         Alt_Hold_Err := Saturate (Dead_Band (Asl - Alt_Hold_Target,
-                                    Asl_Err_Deadband),
-                                    -Alt_Hold_Err_Max,
-                                    Alt_Hold_Err_Max);
+         Alt_Hold_Err := Safety.Saturate
+           (Safety.Dead_Band (Asl - Alt_Hold_Target, Asl_Err_Deadband),
+            -Alt_Hold_Err_Max,
+            Alt_Hold_Err_Max);
 
          --  Update the Altitude PID
-         Altitude_Pid.Pid_Set_Error (Alt_Hold_PID, -Alt_Hold_Err);
-         Altitude_Pid.Pid_Update (Alt_Hold_PID, Asl, False);
+         Altitude_Pid.Set_Error (Alt_Hold_PID, -Alt_Hold_Err);
+         Altitude_Pid.Update (Alt_Hold_PID, Asl, False);
 
-         Baro_V_Speed := Saturate ((1.0 - Alt_Pid_Alpha)
-                                   * ((V_Speed_Acc * V_Speed_Acc_Fac)
-                                   + (V_Speed_ASL * V_Speed_ASL_Fac)),
-                                   T_Speed'First,
-                                   T_Speed'Last);
-         Alt_Hold_PID_Out := Saturate (Altitude_Pid.Pid_Get_Output
-                                       (Alt_Hold_PID),
-                                       T_Altitude'First,
-                                       T_Altitude'Last);
+         Baro_V_Speed := Safety.Saturate
+           ((1.0 - Alt_Pid_Alpha) * ((V_Speed_Acc * V_Speed_Acc_Fac)
+                                     + (V_Speed_ASL * V_Speed_ASL_Fac)),
+            Types.T_Speed'First,
+            Types.T_Speed'Last);
+         Alt_Hold_PID_Out := Safety.Saturate
+           (Altitude_Pid.Get_Output (Alt_Hold_PID),
+            LPS25h.T_Altitude'First,
+            LPS25h.T_Altitude'Last);
 
-         Alt_Hold_PID_Val := Saturate (Alt_Pid_Alpha * Alt_Hold_PID_Val +
-                                         Baro_V_Speed + Alt_Hold_PID_Out,
-                                       T_Altitude'First,
-                                       T_Altitude'Last);
+         Alt_Hold_PID_Val := Safety.Saturate
+           (Alt_Pid_Alpha * Alt_Hold_PID_Val + Baro_V_Speed + Alt_Hold_PID_Out,
+            LPS25h.T_Altitude'First,
+            LPS25h.T_Altitude'Last);
 
-         Raw_Thrust := Truncate_To_T_Int16
+         Raw_Thrust := Safety.Truncate_To_T_Int16
            (Alt_Hold_PID_Val * Alt_Pid_Asl_Fac);
-         Actuator_Thrust := Saturate (Limit_Thrust (T_Int32 (Raw_Thrust)
-                                       + T_Int32 (Alt_Hold_Base_Thrust)),
-                                       Alt_Hold_Min_Thrust,
-                                       Alt_Hold_Max_Thrust);
+         Actuator_Thrust := Safety.Saturate
+           (Limit_Thrust (Types.T_Int32 (Raw_Thrust)
+                          + Types.T_Int32 (Alt_Hold_Base_Thrust)),
+            Alt_Hold_Min_Thrust,
+            Alt_Hold_Max_Thrust);
       end if;
 
-   end Stabilizer_Alt_Hold_Update;
+   end Alt_Hold_Update;
 
    --  Public functions
 
-   -----------------------------
-   -- Stabilizer_Control_Loop --
-   -----------------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Stabilizer_Control_Loop
-     (Attitude_Update_Counter : in out T_Uint32;
-      Alt_Hold_Update_Counter : in out T_Uint32)
+   procedure Init is
+   begin
+      if Is_Init then
+         return;
+      end if;
+
+      Controller.Init;
+
+      Init_Logging;
+
+      Is_Init := True;
+   end Init;
+
+   ----------
+   -- Test --
+   ----------
+
+   function Test return Boolean is
+   begin
+      return Is_Init;
+   end Test;
+
+   ------------------
+   -- Control_Loop --
+   ------------------
+
+   procedure Control_Loop
+     (Attitude_Update_Counter : in out Types.T_Uint32;
+      Alt_Hold_Update_Counter : in out Types.T_Uint32)
    is
-      use type T_Int16;
+      use type Types.T_Int16;
+      use type Types.T_Uint16;
+      use type Types.T_Uint32;
    begin
       --  Magnetometer not used for the moment
-      IMU_9_Read (Gyro, Acc, Mag);
+      IMU.Read_9 (Gyro, Acc, Mag);
 
       --  Increment the counters
       Attitude_Update_Counter := Attitude_Update_Counter + 1;
@@ -437,66 +443,66 @@ is
 
       --  Check if the drone is in Free fall or has landed.
       --  This check is enabled by default, but can be disabled
-      FF_Check_Event (Acc);
+      Free_Fall.FF_Check_Event (Acc);
 
       --  Get commands from the pilot
-      Commander_Get_RPY (Euler_Roll_Desired,
+      Commander.Get_RPY (Euler_Roll_Desired,
                          Euler_Pitch_Desired,
                          Euler_Yaw_Desired);
 
-      Commander_Get_RPY_Type (Roll_Type, Pitch_Type, Yaw_Type);
+      Commander.Get_RPY_Type (Roll_Type, Pitch_Type, Yaw_Type);
 
       --  If FF checks are enabled and the drone is in recovery,
       --  override the pilot commands
-      FF_Get_Recovery_Commands (Euler_Roll_Desired,
-                                Euler_Pitch_Desired,
-                                Roll_Type,
-                                Pitch_Type);
+      Free_Fall.FF_Get_Recovery_Commands (Euler_Roll_Desired,
+                                          Euler_Pitch_Desired,
+                                          Roll_Type,
+                                          Pitch_Type);
 
       --  Update attitude at IMU_UPDATE_FREQ / ATTITUDE_UPDATE_RATE_DIVIDER
       --  By default the result is 250 Hz
       if Attitude_Update_Counter >= ATTITUDE_UPDATE_RATE_DIVIDER then
          --  Update attitude
-         Stabilizer_Update_Attitude;
+         Update_Attitude;
          --  Reset the counter
          Attitude_Update_Counter := 0;
       end if;
 
-      if IMU_Has_Barometer and
+      if IMU.Has_Barometer and
         Alt_Hold_Update_Counter >= ALTHOLD_UPDATE_RATE_DIVIDER
       then
          --  Altidude hold mode update
-         Stabilizer_Alt_Hold_Update;
+         Alt_Hold_Update;
          --  Reset the counter
          Alt_Hold_Update_Counter := 0;
       end if;
 
-      Stabilizer_Update_Rate;
+      Update_Rate;
 
-      if not Alt_Hold or not IMU_Has_Barometer then
+      if not Alt_Hold or not IMU.Has_Barometer then
          --  Get thrust from the commander if alt hold mode
          --  not activated
-         Commander_Get_Thrust (Actuator_Thrust);
+         Commander.Get_Thrust (Actuator_Thrust);
          --  Override the thrust if the drone is in freefall
-         FF_Get_Recovery_Thrust (Actuator_Thrust);
+         Free_Fall.FF_Get_Recovery_Thrust (Actuator_Thrust);
       else
          --  Added so thrust can be set to 0 while in altitude hold mode
          --  after disconnect
-         Commander_Watchdog;
+         Commander.Watchdog;
       end if;
 
       if Actuator_Thrust > 0 then
          --  Ensure that there is no overflow when changing Yaw sign
-         if Actuator_Yaw = T_Int16'First then
-            Actuator_Yaw := -T_Int16'Last;
+         if Actuator_Yaw = Types.T_Int16'First then
+            Actuator_Yaw := -Types.T_Int16'Last;
          end if;
 
-         Stabilizer_Distribute_Power (Actuator_Thrust, Actuator_Roll,
-                                      Actuator_Pitch, -Actuator_Yaw);
+         Distribute_Power (Actuator_Thrust, Actuator_Roll,
+                           Actuator_Pitch, -Actuator_Yaw);
       else
-         Stabilizer_Distribute_Power (0, 0, 0, 0);
-         Controller_Reset_All_Pid;
+         Distribute_Power (0, 0, 0, 0);
+         Controller.Reset_All_Pid;
       end if;
-   end Stabilizer_Control_Loop;
+   end Control_Loop;
 
 end Stabilizer;

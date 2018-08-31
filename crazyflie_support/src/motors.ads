@@ -27,11 +27,9 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Types;             use Types;
+with Types;
 
-with STM32;           use STM32;
-with STM32.Device;    use STM32.Device;
-with STM32.PWM;       use STM32.PWM;
+with STM32.PWM;       use STM32.PWM;  -- Part of Ada Drivers Library.
 
 package Motors
    with Abstract_State => Motors_State
@@ -44,32 +42,32 @@ is
    --  Procedures and functions
 
    --  Initialize the motors.
-   procedure Motors_Init
+   procedure Init
      with
      Global => (In_Out => Motors_State);
 
    --  Apply an absolute power to the given motor.
-   procedure Motor_Set_Power
+   procedure Set_Power
      (ID    : Motor_ID;
-      Power : T_Uint16)
+      Power : Types.T_Uint16)
      with
        Global => (In_Out => Motors_State);
 
    --  Apply power to the given motor with a compensation
    --  according to the battery level.
-   procedure Motor_Set_Power_With_Bat_Compensation
+   procedure Set_Power_With_Bat_Compensation
      (ID    : Motor_ID;
-      Power : T_Uint16)
+      Power : Types.T_Uint16)
      with
        Global => (In_Out => Motors_State);
 
    --  Test all the Crazyflie motors.
-   function Motors_Test return Boolean
+   function Test return Boolean
      with
        Global => (Input => Motors_State);
 
    --  Set the power of all the motors to zero.
-   procedure Motors_Reset
+   procedure Reset
      with
        Global => (In_Out => Motors_State);
 

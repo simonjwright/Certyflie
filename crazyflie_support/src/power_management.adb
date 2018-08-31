@@ -40,35 +40,35 @@ with Refined_State => (Power_Management_State => (Current_Power_Info,
                                                   Battery_Low_Time_Stamp))
 is
 
-   ---------------------------
-   -- Power_Management_Init --
-   ---------------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Power_Management_Init is
+   procedure Init is
    begin
       Current_Power_State := Battery;
 
       declare
          Dummy : Boolean;
       begin
-         Log.Add_Log_Variable (Group    => "pm",
-                               Name     => "vbat",
-                               Log_Type => Log.LOG_FLOAT,
-                               Variable => Battery_Voltage'Address,
-                               Success  => Dummy);
-         Log.Add_Log_Variable (Group    => "pm",
-                               Name     => "state",
-                               Log_Type => Log.LOG_INT8,
-                               Variable => Current_Power_State'Address,
-                               Success  => Dummy);
+         Log.Add_Variable (Group    => "pm",
+                           Name     => "vbat",
+                           Typ      => Log.FLOAT,
+                           Variable => Battery_Voltage'Address,
+                           Success  => Dummy);
+         Log.Add_Variable (Group    => "pm",
+                           Name     => "state",
+                           Typ      => Log.INT8,
+                           Variable => Current_Power_State'Address,
+                           Success  => Dummy);
       end;
-   end Power_Management_Init;
+   end Init;
 
-   ------------------------------------------
-   -- Power_Management_Set_Battery_Voltage --
-   ------------------------------------------
+   -------------------------
+   -- Set_Battery_Voltage --
+   -------------------------
 
-   procedure Power_Management_Set_Battery_Voltage (Voltage : Float) is
+   procedure Set_Battery_Voltage (Voltage : Float) is
    begin
       Battery_Voltage := Voltage;
 
@@ -79,20 +79,20 @@ is
       if Battery_Voltage_Min > Voltage then
          Battery_Voltage_Min := Voltage;
       end if;
-   end Power_Management_Set_Battery_Voltage;
+   end Set_Battery_Voltage;
 
-   ------------------------------------------
-   -- Power_Management_Get_Battery_Voltage --
-   ------------------------------------------
+   -------------------------
+   -- Get_Battery_Voltage --
+   -------------------------
 
-   function Power_Management_Get_Battery_Voltage return Float is
+   function Get_Battery_Voltage return Float is
      (Battery_Voltage);
 
-   ----------------------------------------------
-   -- Power_Management_Get_Charge_From_Voltage --
-   ----------------------------------------------
+   -----------------------------
+   -- Get_Charge_From_Voltage --
+   -----------------------------
 
-   function Power_Management_Get_Charge_From_Voltage
+   function Get_Charge_From_Voltage
      (Voltage : Float) return Integer
    is
    begin
@@ -103,41 +103,42 @@ is
       end loop;
 
       return 9;
-   end Power_Management_Get_Charge_From_Voltage;
+   end Get_Charge_From_Voltage;
 
-   -------------------------------------
-   -- Power_Management_Syslink_Update --
-   -------------------------------------
+   --------------------
+   -- Syslink_Update --
+   --------------------
 
-   procedure Power_Management_Syslink_Update (Sl_Packet : Syslink_Packet) is
-      subtype Power_Data is T_Uint8_Array (1 .. 9);
+   procedure Syslink_Update (Sl_Packet : Syslink.Packet) is
+      subtype Power_Data is Types.T_Uint8_Array (1 .. 9);
       function Syslink_Data_To_Power_Syslink_Info is
          new Ada.Unchecked_Conversion (Power_Data, Power_Syslink_Info);
    begin
       Current_Power_Info :=
         Syslink_Data_To_Power_Syslink_Info (Sl_Packet.Data (1 .. 9));
-      Power_Management_Set_Battery_Voltage (Current_Power_Info.V_Bat_1);
-   end Power_Management_Syslink_Update;
+      Set_Battery_Voltage (Current_Power_Info.V_Bat_1);
+   end Syslink_Update;
 
-   --------------------------------
-   -- Power_Management_Get_State --
-   --------------------------------
+   ---------------
+   -- Get_State --
+   ---------------
 
-   function Power_Management_Get_State
+   function Get_State
      (Power_Info : Power_Syslink_Info) return Power_State
    is
       State            : Power_State;
       Is_Charging      : Boolean;
       Is_Pgood         : Boolean;
       Charge_Rate      : Integer;
-      Battery_Low_Time : Time_Span;
+      Battery_Low_Time : Ada.Real_Time.Time_Span;
 
+      use type Ada.Real_Time.Time_Span;
    begin
       Is_Charging      := Power_Info.Charging;
       Is_Pgood         := Power_Info.Pgood;
-      Battery_Low_Time := Clock - Battery_Low_Time_Stamp;
+      Battery_Low_Time := Ada.Real_Time.Clock - Battery_Low_Time_Stamp;
       Charge_Rate      :=
-        Power_Management_Get_Charge_From_Voltage (Power_Info.V_Bat_1);
+        Get_Charge_From_Voltage (Power_Info.V_Bat_1);
       LEDS.Set_Battery_Level (Charge_Rate);
 
       if Charge_Rate = 9 and then Is_Charging then
@@ -156,19 +157,19 @@ is
       end if;
 
       return State;
-   end Power_Management_Get_State;
+   end Get_State;
 
-   -------------------------------------
-   -- Power_Management_Is_Discharging --
-   -------------------------------------
+   --------------------
+   -- Is_Discharging --
+   --------------------
 
-   function Power_Management_Is_Discharging return Boolean is
+   function Is_Discharging return Boolean is
       State : Power_State;
    begin
-      State := Power_Management_Get_State (Current_Power_Info);
+      State := Get_State (Current_Power_Info);
 
       return State = Battery;
-   end Power_Management_Is_Discharging;
+   end Is_Discharging;
 
    --------------------
    -- Set_Power_LEDs --
@@ -178,49 +179,55 @@ is
    begin
       case State is
          when Charging =>
-            Set_Battery_State (Charging);
+            LEDS.Set_Battery_State (LEDS.Charging);
          when Charged =>
-            Set_Battery_State (Charged);
+            LEDS.Set_Battery_State (LEDS.Charged);
          when Low_Power =>
-            Set_Battery_State (Low_Power);
+            LEDS.Set_Battery_State (LEDS.Low_Power);
          when Battery =>
-            Set_Battery_State (On_Battery);
+            LEDS.Set_Battery_State (LEDS.On_Battery);
          when others =>
             null;
       end case;
       --  TODO: find other led feedback for the other power states
    end Set_Power_LEDs;
 
-   --------------------------------
-   -- Power_Management_Task_Type --
-   --------------------------------
+   ---------------
+   -- Task_Type --
+   ---------------
 
-   task body Power_Management_Task_Type is
-      Next_Period     : Time;
+   task body Task_Type is
+      Now             : Ada.Real_Time.Time;
+      Next_Period     : Ada.Real_Time.Time;
       New_Power_State : Power_State;
-   begin
-      Next_Period := Clock + Milliseconds (500);
 
-      Battery_Low_Time_Stamp := Clock;
+      use type Ada.Real_Time.Time;
+   begin
+      Now := Ada.Real_Time.Clock;
+      Next_Period := Now + Ada.Real_Time.Milliseconds (500);
+
+      Battery_Low_Time_Stamp := Now;
       Set_Power_LEDs (Current_Power_State);
 
       loop
          delay until Next_Period;
 
+         Now := Ada.Real_Time.Clock;
+
          if Battery_Voltage > PM_BAT_LOW_VOLTAGE then
-            Battery_Low_Time_Stamp := Clock;
+            Battery_Low_Time_Stamp := Now;
          end if;
 
-         New_Power_State := Power_Management_Get_State (Current_Power_Info);
+         New_Power_State := Get_State (Current_Power_Info);
 
-         --  Set the leds accordingly if teh power state has changed
+         --  Set the leds accordingly if the power state has changed
          if Current_Power_State /= New_Power_State then
             Set_Power_LEDs (New_Power_State);
             Current_Power_State := New_Power_State;
          end if;
 
-         Next_Period := Next_Period + Milliseconds (500);
+         Next_Period := Next_Period + Ada.Real_Time.Milliseconds (500);
       end loop;
-   end Power_Management_Task_Type;
+   end Task_Type;
 
 end Power_Management;

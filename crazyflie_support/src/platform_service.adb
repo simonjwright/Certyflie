@@ -27,70 +27,69 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Syslink; use Syslink;
+with Syslink;
 
 package body Platform_Service is
 
-   ---------------------------
-   -- Platform_Service_Init --
-   ---------------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Platform_Service_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
-      CRTP_Register_Callback (CRTP_PORT_PLATFORM,
-                              Platform_Service_Handler'Access);
+      CRTP.Register_Callback (CRTP.PORT_PLATFORM, Handler'Access);
 
       Is_Init := True;
-   end Platform_Service_Init;
+   end Init;
 
-   ---------------------------
-   -- Platform_Service_Test --
-   ---------------------------
+   ----------
+   -- Test --
+   ----------
 
-   function Platform_Service_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Init;
-   end Platform_Service_Test;
+   end Test;
 
-   ------------------------------
-   -- Platform_Service_Handler --
-   ------------------------------
+   -------------
+   -- Handler --
+   -------------
 
-   procedure Platform_Service_Handler (Packet : CRTP_Packet) is
+   procedure Handler (Packet : CRTP.Packet) is
       Has_Succeed : Boolean;
    begin
       case Packet.Channel is
          when Platform_Channel'Enum_Rep (PLAT_COMMAND) =>
-            Platform_Command_Process
+            Command_Process
               (Packet.Data_1 (1), Packet.Data_1 (2 .. Packet.Data_1'Last));
-            CRTP_Send_Packet (Packet, Has_Succeed);
+            CRTP.Send_Packet (Packet, Has_Succeed);
          when others =>
             null;
       end case;
-   end Platform_Service_Handler;
+   end Handler;
 
-   ------------------------------
-   -- Platform_Command_Process --
-   ------------------------------
+   ---------------------
+   -- Command_Process --
+   ---------------------
 
-   procedure Platform_Command_Process
-     (Command : T_Uint8;
-      Data    : T_Uint8_Array) is
-      Sl_Packet : Syslink_Packet;
+   procedure Command_Process
+     (Command : Types.T_Uint8;
+      Data    : Types.T_Uint8_Array) is
+      Sl_Packet : Syslink.Packet;
    begin
       case Command is
          when Platform_Command'Enum_Rep (SET_CONTINUOUS_WAVE) =>
-            Sl_Packet.Slp_Type := SYSLINK_RADIO_CONTWAVE;
+            Sl_Packet.Slp_Type := Syslink.RADIO_CONTWAVE;
             Sl_Packet.Length := 1;
             Sl_Packet.Data (1) := Data (Data'First);
-            Syslink_Send_Packet (Sl_Packet);
+            Syslink.Send_Packet (Sl_Packet);
          when others =>
             null;
       end case;
-   end Platform_Command_Process;
+   end Command_Process;
 
 end Platform_Service;

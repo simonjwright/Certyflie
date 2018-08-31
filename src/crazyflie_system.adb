@@ -27,19 +27,19 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Real_Time;    use Ada.Real_Time;
+with Ada.Real_Time;
 
-with Communication;    use Communication;
-with Commander;        use Commander;
-with IMU;              use IMU;
-with LEDS;             use LEDS;
-with Log;              use Log;
-with Memory;           use Memory;
-with Motors;           use Motors;
-with Parameter;        use Parameter;
-with Power_Management; use Power_Management;
-with Stabilizer;       use Stabilizer;
-with Types;            use Types;
+with Communication;
+with Commander;
+with IMU;
+with LEDS;
+with Log;
+with Memory;
+with Motors;
+with Parameter;
+with Power_Management;
+with Stabilizer;
+with Types;
 
 package body Crazyflie_System is
 
@@ -58,30 +58,30 @@ package body Crazyflie_System is
       --  Module initialization.
 
       --  Initialize LEDs, power management, sensors and actuators.
-      LEDS_Init;
-      Motors_Init;
-      IMU_Init (Use_Mag    => True,
+      LEDS.Init;
+      Motors.Init;
+      IMU.Init (Use_Mag    => True,
                 DLPF_256Hz => False);
 
       --  Initialize communication related modules.
-      Communication_Init;
+      Communication.Init;
 
       --  Initialize power management module.
-      Power_Management_Init;
+      Power_Management.Init;
 
       --  Initialize memory module.
-      Memory_Init;
+      Memory.Init;
 
       --  Initialize logging.
-      Log_Init;
+      Log.Init;
 
       --  Initialize parameters.
-      Parameter_Init;
+      Parameter.Init;
       Initialize_System_Parameter_Logging;
 
       --  Initialize high level modules.
-      Commander_Init;
-      Stabilizer_Init;
+      Commander.Init;
+      Stabilizer.Init;
 
       Is_Init := True;
    end System_Init;
@@ -93,26 +93,26 @@ package body Crazyflie_System is
    function System_Self_Test return Boolean is
       Self_Test_Passed : Boolean;
    begin
-      Set_System_State (Self_Test);
-      Self_Test_Passed := LEDS_Test;
-      Self_Test_Passed := Self_Test_Passed and Motors_Test;
-      Self_Test_Passed := Self_Test_Passed and IMU_Test;
-      Self_Test_Passed := Self_Test_Passed and Communication_Test;
-      Self_Test_Passed := Self_Test_Passed and Memory_Test;
-      Self_Test_Passed := Self_Test_Passed and Commander_Test;
-      Self_Test_Passed := Self_Test_Passed and Stabilizer_Test;
+      LEDS.Set_System_State (LEDS.Self_Test);
+      Self_Test_Passed := LEDS.Test;
+      Self_Test_Passed := Self_Test_Passed and Motors.Test;
+      Self_Test_Passed := Self_Test_Passed and IMU.Test;
+      Self_Test_Passed := Self_Test_Passed and Communication.Test;
+      Self_Test_Passed := Self_Test_Passed and Memory.Test;
+      Self_Test_Passed := Self_Test_Passed and Commander.Test;
+      Self_Test_Passed := Self_Test_Passed and Stabilizer.Test;
 
       if Self_Test_Passed then
-         Set_System_State (Calibrating);
+         LEDS.Set_System_State (LEDS.Calibrating);
 
-         if IMU_6_Calibrate then
-            Set_System_State (Ready);
+         if IMU.Calibrate_6 then
+            LEDS.Set_System_State (LEDS.Ready);
          else
-            Set_System_State (Failure);
+            LEDS.Set_System_State (LEDS.Failure);
          end if;
 
       elsif not Self_Test_Passed then
-         Set_System_State (Failure);
+         LEDS.Set_System_State (LEDS.Failure);
       end if;
 
       Self_Test_Status (OK => Self_Test_Passed);
@@ -125,18 +125,20 @@ package body Crazyflie_System is
    -----------------
 
    procedure System_Loop is
+      use Ada.Real_Time;
+      use Types;
       Attitude_Update_Counter : T_Uint32 := 0;
       Alt_Hold_Update_Counter : T_Uint32 := 0;
       Next_Period             : Time;
    begin
-      Next_Period := Clock + IMU_UPDATE_DT_MS;
+      Next_Period := Clock + IMU.UPDATE_DT_MS;
 
       loop
          delay until Next_Period;
-         Stabilizer_Control_Loop (Attitude_Update_Counter,
+         Stabilizer.Control_Loop (Attitude_Update_Counter,
                                   Alt_Hold_Update_Counter);
 
-         Next_Period := Next_Period + IMU_UPDATE_DT_MS;
+         Next_Period := Next_Period + IMU.UPDATE_DT_MS;
       end loop;
    end System_Loop;
 
@@ -147,13 +149,14 @@ package body Crazyflie_System is
    procedure Last_Chance_Handler (Message : System.Address; Line : Integer)
    is
       pragma Unreferenced (Message, Line);
+      use Ada.Real_Time;
    begin
-      Motors_Reset;
-      Reset_All_LEDs;
+      Motors.Reset;
+      LEDS.Reset_All;
 
       --  No-return procedure...
       loop
-         Toggle_LED (LED_Red_L);
+         LEDS.Toggle (LEDS.Red_L);
          delay until Clock + Milliseconds (1_000);
       end loop;
    end Last_Chance_Handler;
@@ -171,10 +174,11 @@ package body Crazyflie_System is
    pragma Assert (Self_Test_Passed'Size = 8);
 
    procedure Initialize_System_Parameter_Logging is
+      use Parameter;
    begin
-      Parameter.Create_Parameter_Group (Name        => "system",
-                                        Group_ID    => System_Group_ID,
-                                        Has_Succeed => System_Group_Created);
+      Create_Parameter_Group (Name        => "system",
+                              Group_ID    => System_Group_ID,
+                              Has_Succeed => System_Group_Created);
 
       if System_Group_Created then
          declare

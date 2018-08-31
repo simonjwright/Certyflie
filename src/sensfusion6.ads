@@ -27,8 +27,8 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with IMU; use IMU;
-with Types;    use Types;
+with IMU;
+with Types;
 
 package SensFusion6
 with SPARK_Mode,
@@ -39,37 +39,37 @@ is
    --  Procedures and functions
 
    --  Initialize the sensorfusion module.
-   procedure SensFusion6_Init;
+   procedure Init;
 
    --  Test if the sensorfusion module is initialized.
-   function SensFusion6_Test return Boolean;
+   function Test return Boolean;
 
    --  Update the quaternions by fusing sensor measurements.
-   procedure SensFusion6_Update_Q
-     (Gx : T_Rate;
-      Gy : T_Rate;
-      Gz : T_Rate;
-      Ax : T_Acc;
-      Ay : T_Acc;
-      Az : T_Acc;
-      Mx : T_Mag;
-      My : T_Mag;
-      Mz : T_Mag;
-      Dt : T_Delta_Time);
+   procedure Update_Q
+     (Gx : IMU.T_Rate;
+      Gy : IMU.T_Rate;
+      Gz : IMU.T_Rate;
+      Ax : IMU.T_Acc;
+      Ay : IMU.T_Acc;
+      Az : IMU.T_Acc;
+      Mx : IMU.T_Mag;
+      My : IMU.T_Mag;
+      Mz : IMU.T_Mag;
+      Dt : Types.T_Delta_Time);
 
    --  Get Euler roll, pitch and yaw from the current quaternions.
-   --  Must be called after a call to 'Sensfusion6_Update_Q' to have
+   --  Must be called after a call to 'Update_Q' to have
    --  the latest angles.
-   procedure SensFusion6_Get_Euler_RPY
-     (Euler_Roll_Actual  : out T_Degrees;
-      Euler_Pitch_Actual : out T_Degrees;
-      Euler_Yaw_Actual   : out T_Degrees);
+   procedure Get_Euler_RPY
+     (Euler_Roll_Actual  : out Types.T_Degrees;
+      Euler_Pitch_Actual : out Types.T_Degrees;
+      Euler_Yaw_Actual   : out Types.T_Degrees);
 
    --  Get accleration along Z axis, without gravity.
-   function SensFusion6_Get_AccZ_Without_Gravity
-     (Ax : T_Acc;
-      Ay : T_Acc;
-      Az : T_Acc) return Float;
+   function Get_AccZ_Without_Gravity
+     (Ax : IMU.T_Acc;
+      Ay : IMU.T_Acc;
+      Az : IMU.T_Acc) return Float;
 
 private
 
@@ -77,14 +77,14 @@ private
 
    Is_Init : Boolean := False with Part_Of => SensFusion6_State;
 
-   Q0 : T_Quaternion := 1.0
+   Q0 : Types.T_Quaternion := 1.0
      with Part_Of => SensFusion6_State;
-   Q1 : T_Quaternion := 0.0
+   Q1 : Types.T_Quaternion := 0.0
      with Part_Of => SensFusion6_State;
-   Q2 : T_Quaternion := 0.0
+   Q2 : Types.T_Quaternion := 0.0
      with Part_Of => SensFusion6_State;
    --  quaternion of sensor frame relative to auxiliary frame
-   Q3 : T_Quaternion := 0.0
+   Q3 : Types.T_Quaternion := 0.0
      with Part_Of => SensFusion6_State;
 
    --   Implementation of Madgwick's IMU and AHRS algorithms.

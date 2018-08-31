@@ -27,18 +27,19 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Config;           use Config;
-with CRTP;             use CRTP;
-with Log;              use Log;
-with Power_Management; use Power_Management;
-with Syslink;          use Syslink;
+with Config;
+with CRTP;
+with Log;
+with Power_Management;
+with Syslink;
 
 package Tasks is
 
-   CRTP_Rx_Task          : CRTP_Rx_Task_Type (CRTP_RXTX_TASK_PRIORITY);
-   CRTP_Tx_Task          : CRTP_Tx_Task_Type (CRTP_RXTX_TASK_PRIORITY);
-   Syslink_Task          : Syslink_Task_Type (SYSLINK_TASK_PRIORITY);
-   Power_Management_Task : Power_Management_Task_Type (PM_TASK_PRIORITY);
-   Logger_Task           : Logger (LOG_TASK_PRIORITY);
+   CRTP_Rx_Task          : CRTP.Rx_Task_Type (Config.CRTP_RXTX_TASK_PRIORITY);
+   CRTP_Tx_Task          : CRTP.Tx_Task_Type (Config.CRTP_RXTX_TASK_PRIORITY);
+   Syslink_Task          : Syslink.Task_Type (Config.SYSLINK_TASK_PRIORITY);
+   Power_Management_Task :
+     Power_Management.Task_Type (Config.PM_TASK_PRIORITY);
+   Logger_Task           : Log.Logger (Config.LOG_TASK_PRIORITY);
 
 end Tasks;

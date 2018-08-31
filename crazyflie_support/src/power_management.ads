@@ -26,12 +26,12 @@
 --  however invalidate any other reasons why the executable file  might be  --
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
-with Ada.Real_Time; use Ada.Real_Time;
+with Ada.Real_Time;
 with System;
 
-with LEDS;          use LEDS;
-with Syslink;       use Syslink;
-with Types;         use Types;
+with LEDS;
+with Syslink;
+with Types;
 
 package Power_Management
   with Abstract_State => (Power_Management_State)
@@ -52,13 +52,13 @@ is
    type Power_Syslink_Info (Repr : Power_Syslink_Info_Repr := Normal) is record
       case Repr is
          when Normal =>
-            Flags            : T_Uint8;
+            Flags            : Types.T_Uint8;
             V_Bat_1          : Float;
             Current_Charge_1 : Float;
          when Flags_Detailed =>
             Pgood            : Boolean;
             Charging         : Boolean;
-            Unused           : T_Uint6;
+            Unused           : Types.T_Uint6;
             V_Bat_2          : Float;
             Current_Charge_2 : Float;
       end case;
@@ -71,22 +71,22 @@ is
    --  Procedures and functions
 
    --  Initialize the power management module.
-   procedure Power_Management_Init;
+   procedure Init;
 
    --  Update the power state information.
-   procedure Power_Management_Syslink_Update (Sl_Packet : Syslink_Packet);
+   procedure Syslink_Update (Sl_Packet : Syslink.Packet);
 
    --  Return True is the Crazyflie is discharging, False when it's charging.
-   function Power_Management_Is_Discharging return Boolean;
+   function Is_Discharging return Boolean;
 
    --  Get the current battery voltage.
-   function Power_Management_Get_Battery_Voltage return Float;
+   function Get_Battery_Voltage return Float;
 
    --  Tasks and protected objects
 
-   task type Power_Management_Task_Type (Prio : System.Priority) is
+   task type Task_Type (Prio : System.Priority) is
       pragma Priority (Prio);
-   end Power_Management_Task_Type;
+   end Task_Type;
 
 private
 
@@ -111,18 +111,19 @@ private
    Battery_Voltage_Max      : Float := 0.0
      with
        Part_Of => Power_Management_State;
-   Battery_Low_Time_Stamp   : Time
+   Battery_Low_Time_Stamp   : Ada.Real_Time.Time
      with
        Part_Of => Power_Management_State;
 
    --  LEDs to switch on according power state.
-   Charging_LED  : constant Crazyflie_LED := LED_Blue_L;
-   Charged_LED   : constant Crazyflie_LED := LED_Green_L;
-   Low_Power_Led : constant Crazyflie_LED := LED_Red_L;
+   Charging_LED  : constant LEDS.Crazyflie_LED := LEDS.Blue_L;
+   Charged_LED   : constant LEDS.Crazyflie_LED := LEDS.Green_L;
+   Low_Power_Led : constant LEDS.Crazyflie_LED := LEDS.Red_L;
 
    --  Constants used to detect when the battery is low.
    PM_BAT_LOW_VOLTAGE : constant := 3.2;
-   PM_BAT_LOW_TIMEOUT : constant Time_Span := Seconds (5);
+   PM_BAT_LOW_TIMEOUT : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Seconds (5);
 
    --  Constants used to know the charge percentage of the battery.
    Bat_671723HS25C : constant array (1 .. 10) of Float :=
@@ -142,16 +143,16 @@ private
    --  Procedures and functions
 
    --  Set the battery voltage and its min and max values.
-   procedure Power_Management_Set_Battery_Voltage (Voltage : Float);
+   procedure Set_Battery_Voltage (Voltage : Float);
 
    --  Return a number From 0 To 9 Where 0 is completely Discharged
    --  and 9 is 90% charged.
-   function Power_Management_Get_Charge_From_Voltage
+   function Get_Charge_From_Voltage
      (Voltage : Float) return Integer;
 
    --  Get the power state for the given power information received from
    --  the nrf51.
-   function Power_Management_Get_State
+   function Get_State
      (Power_Info : Power_Syslink_Info) return Power_State;
 
    --  Switch on/off the power related leds according to power state.

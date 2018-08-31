@@ -27,25 +27,25 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Safety; use Safety;
+with Safety;
 
 package body Pid
 with SPARK_Mode
 is
 
-   --------------
-   -- Pid_Init --
-   --------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Pid_Init
-     (Pid          : out Pid_Object;
+   procedure Init
+     (Pid          : out Object;
       Desired      : T_Input;
       Kp           : T_Coeff;
       Ki           : T_Coeff;
       Kd           : T_Coeff;
       I_Limit_Low  : T_I_Limit;
       I_Limit_High : T_I_Limit;
-      Dt           : T_Delta_Time) is
+      Dt           : Types.T_Delta_Time) is
    begin
       Pid.Desired := Desired;
       Pid.Error := 0.0;
@@ -61,26 +61,26 @@ is
       Pid.I_Limit_Low  := I_Limit_Low;
       Pid.I_Limit_High := I_Limit_High;
       Pid.Dt := Dt;
-   end Pid_Init;
+   end Init;
 
-   ---------------
-   -- Pid_Reset --
-   ---------------
+   -----------
+   -- Reset --
+   -----------
 
-   procedure Pid_Reset (Pid : in out Pid_Object) is
+   procedure Reset (Pid : in out Object) is
    begin
       Pid.Error := 0.0;
       Pid.Prev_Error := 0.0;
       Pid.Integ := 0.0;
       Pid.Deriv := 0.0;
-   end Pid_Reset;
+   end Reset;
 
-   ----------------
-   -- Pid_Update --
-   ----------------
+   ------------
+   -- Update --
+   ------------
 
-   procedure Pid_Update
-     (Pid          : in out Pid_Object;
+   procedure Update
+     (Pid          : in out Object;
       Measured     : T_Input;
       Update_Error : Boolean) is
    begin
@@ -89,12 +89,12 @@ is
       end if;
 
       pragma Assert (Pid.Error * Pid.Dt in
-                       T_Error'First * 2.0 * T_Delta_Time'Last ..
-                         T_Error'Last * 2.0 * T_Delta_Time'Last);
+                       T_Error'First * 2.0 * Types.T_Delta_Time'Last ..
+                         T_Error'Last * 2.0 * Types.T_Delta_Time'Last);
 
-      Pid.Integ := Saturate (Pid.Integ + Pid.Error * Pid.Dt,
-                             Pid.I_Limit_Low,
-                             Pid.I_Limit_High);
+      Pid.Integ := Safety.Saturate (Pid.Integ + Pid.Error * Pid.Dt,
+                                    Pid.I_Limit_Low,
+                                    Pid.I_Limit_High);
 
       Pid.Deriv := (Pid.Error - Pid.Prev_Error) / Pid.Dt;
 
@@ -107,20 +107,20 @@ is
       Pid.Out_D := Pid.Kd * Pid.Deriv;
 
       Pid.Prev_Error := Pid.Error;
-   end Pid_Update;
+   end Update;
 
-   --------------------
-   -- Pid_Get_Output --
-   --------------------
+   ----------------
+   -- Get_Output --
+   ----------------
 
-   function Pid_Get_Output (Pid : Pid_Object) return Float is
+   function Get_Output (Pid : Object) return Float is
      (Pid.Out_P + Pid.Out_I + Pid.Out_D);
 
-   -------------------
-   -- Pid_Is_Active --
-   -------------------
+   ---------------
+   -- Is_Active --
+   ---------------
 
-   function Pid_Is_Active (Pid : Pid_Object) return Boolean
+   function Is_Active (Pid : Object) return Boolean
    is
       Is_Active : Boolean := True;
    begin
@@ -129,101 +129,101 @@ is
       end if;
 
       return Is_Active;
-   end Pid_Is_Active;
+   end Is_Active;
 
-   ---------------------
-   -- Pid_Set_Desired --
-   ---------------------
+   -----------------
+   -- Set_Desired --
+   -----------------
 
-   procedure Pid_Set_Desired
-     (Pid     : in out Pid_Object;
+   procedure Set_Desired
+     (Pid     : in out Object;
       Desired : T_Input) is
    begin
       Pid.Desired := Desired;
-   end Pid_Set_Desired;
+   end Set_Desired;
 
-   ---------------------
-   -- Pid_Get_Desired --
-   ---------------------
+   -----------------
+   -- Get_Desired --
+   -----------------
 
-   function Pid_Get_Desired (Pid : Pid_Object) return Float is
+   function Get_Desired (Pid : Object) return Float is
      (Pid.Desired);
 
-   -------------------
-   -- Pid_Set_Error --
-   -------------------
+   ---------------
+   -- Set_Error --
+   ---------------
 
-   procedure Pid_Set_Error
-     (Pid   : in out Pid_Object;
+   procedure Set_Error
+     (Pid   : in out Object;
       Error : T_Error) is
    begin
       Pid.Error := Error;
-   end Pid_Set_Error;
+   end Set_Error;
 
-   ----------------
-   -- Pid_Set_Kp --
-   ----------------
+   ------------
+   -- Set_Kp --
+   ------------
 
-   procedure Pid_Set_Kp
-     (Pid : in out Pid_Object;
+   procedure Set_Kp
+     (Pid : in out Object;
       Kp  : T_Coeff) is
    begin
       Pid.Kp := Kp;
-   end Pid_Set_Kp;
+   end Set_Kp;
 
-   ----------------
-   -- Pid_Set_Ki --
-   ----------------
+   ------------
+   -- Set_Ki --
+   ------------
 
-   procedure Pid_Set_Ki
-     (Pid : in out Pid_Object;
+   procedure Set_Ki
+     (Pid : in out Object;
       Ki  : T_Coeff) is
    begin
       Pid.Ki := Ki;
-   end Pid_Set_Ki;
+   end Set_Ki;
 
-   ----------------
-   -- Pid_Set_Kd --
-   ----------------
+   ------------
+   -- Set_Kd --
+   ------------
 
-   procedure Pid_Set_Kd
-     (Pid : in out Pid_Object;
+   procedure Set_Kd
+     (Pid : in out Object;
       Kd  : T_Coeff) is
    begin
       Pid.Kd := Kd;
-   end Pid_Set_Kd;
+   end Set_Kd;
 
-   -------------------------
-   -- Pid_Set_I_Limit_Low --
-   -------------------------
+   ---------------------
+   -- Set_I_Limit_Low --
+   ---------------------
 
-   procedure Pid_Set_I_Limit_Low
-     (Pid          : in out Pid_Object;
+   procedure Set_I_Limit_Low
+     (Pid          : in out Object;
       I_Limit_Low  : T_I_Limit) is
    begin
       Pid.I_Limit_Low := I_Limit_Low;
-   end Pid_Set_I_Limit_Low;
+   end Set_I_Limit_Low;
 
-   --------------------------
-   -- Pid_Set_I_Limit_High --
-   --------------------------
+   ----------------------
+   -- Set_I_Limit_High --
+   ----------------------
 
-   procedure Pid_Set_I_Limit_High
-     (Pid            : in out Pid_Object;
+   procedure Set_I_Limit_High
+     (Pid            : in out Object;
       I_Limit_High   : T_I_Limit) is
    begin
       Pid.I_Limit_High := I_Limit_High;
-   end Pid_Set_I_Limit_High;
+   end Set_I_Limit_High;
 
-   ----------------
-   -- Pid_Set_Dt --
-   ----------------
+   ------------
+   -- Set_Dt --
+   ------------
 
-   procedure Pid_Set_Dt
-     (Pid : in out Pid_Object;
-      Dt  : T_Delta_Time) is
+   procedure Set_Dt
+     (Pid : in out Object;
+      Dt  : Types.T_Delta_Time) is
    begin
       Pid.Dt := Dt;
-   end Pid_Set_Dt;
+   end Set_Dt;
 
 end Pid;

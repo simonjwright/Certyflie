@@ -27,10 +27,10 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Real_Time;       use Ada.Real_Time;
+with Ada.Real_Time;
 
-with Crazyflie_System;    use Crazyflie_System;
-with Config;              use Config;
+with Crazyflie_System;
+with Config;
 
 with Tasks;
 pragma Unreferenced (Tasks);
@@ -40,7 +40,7 @@ pragma Unreferenced (Tasks);
 ----------
 
 procedure Main is
-   pragma Priority (MAIN_TASK_PRIORITY);
+   pragma Priority (Config.MAIN_TASK_PRIORITY);
 
    --  Override the default task stack sizes used by Cortex GNAT RTS,
    --  which aren't enough for the Certyflie code.
@@ -69,15 +69,15 @@ procedure Main is
    Self_Test_Passed : Boolean;
 begin
    --  System initialization
-   System_Init;
+   Crazyflie_System.System_Init;
 
    --  See if we pass the self test
-   Self_Test_Passed := System_Self_Test;
+   Self_Test_Passed := Crazyflie_System.System_Self_Test;
 
    --  Start the main loop if the self test passed
    if Self_Test_Passed then
-      System_Loop;
+      Crazyflie_System.System_Loop;
    else
-      delay until Time_Last;
+      delay until Ada.Real_Time.Time_Last;
    end if;
 end Main;

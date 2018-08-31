@@ -27,21 +27,19 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Interrupts.Names;     use Ada.Interrupts.Names;
-with Ada.Real_Time;            use Ada.Real_Time;
+with Ada.Interrupts.Names;
 with System;
 with System.Storage_Elements;
 
 with Crazyflie_Config;
-with HAL;                      use HAL;
-with STM32;                    use STM32;
-with STM32.Device;             use STM32.Device;
-with STM32.DMA;                use STM32.DMA;
+with HAL;
+with STM32.Device;
+with STM32.DMA;
 with STM32.DMA.Interrupts;
-with STM32.EXTI;               use STM32.EXTI;
-with STM32.USARTs;             use STM32.USARTs;
-with STM32.Board;              use STM32.Board;
-with STM32.GPIO;               use STM32.GPIO;
+with STM32.EXTI;
+with STM32.USARTs;
+with STM32.Board;
+with STM32.GPIO;
 
 with Generic_Queue;
 
@@ -49,27 +47,27 @@ with LEDS;
 
 package body UART_Syslink is
 
-   Red_L   : LEDS.Flasher (LEDS.LED_Red_L'Access);
+   Red_L   : LEDS.Flasher (LEDS.Red_L'Access);
    --  Indicate there's been an overrun on receive.
 
-   Red_R   : LEDS.Flasher (LEDS.LED_Red_R'Access);
+   Red_R   : LEDS.Flasher (LEDS.Red_R'Access);
    --  Indicate that a DMA transfer has been suspended for flow
    --  control.
 
    --  Declarations that used to be in the private part of the spec.
 
-   package T_Uint8_Queue is new Generic_Queue (T_Uint8);
+   package T_Uint8_Queue is new Generic_Queue (Types.T_Uint8);
    use T_Uint8_Queue;
 
    --  Global variables and constants
 
-   Controller : DMA_Controller renames DMA_2;
+   Controller : STM32.DMA.DMA_Controller renames STM32.Device.DMA_2;
 
-   Tx_Channel : constant DMA_Channel_Selector := Channel_5;
-   Tx_Stream : constant DMA_Stream_Selector := Stream_6;
+   Tx_Channel : constant STM32.DMA.DMA_Channel_Selector := STM32.DMA.Channel_5;
+   Tx_Stream : constant STM32.DMA.DMA_Stream_Selector := STM32.DMA.Stream_6;
 
    UART_RX_QUEUE_SIZE   : constant := 40;
-   UART_DATA_TIMEOUT_MS : constant Time_Span :=  Milliseconds (1_000);
+   --  UART_DATA_TIMEOUT_MS : constant Time_Span :=  Milliseconds (1_000);
 
    --  Procedures and functions
 
@@ -92,8 +90,8 @@ package body UART_Syslink is
 
    Tx_IRQ_Handler : STM32.DMA.Interrupts.DMA_Interrupt_Controller
      (Controller => STM32.Device.DMA_2'Access,
-      Stream     => Stream_6,
-      ID         => DMA2_Stream6_Interrupt,
+      Stream     => STM32.DMA.Stream_6,
+      ID         => Ada.Interrupts.Names.DMA2_Stream6_Interrupt,
       Priority   => Crazyflie_Config.HIGH_INTERRUPT_PRIORITY);
 
    --  EXTI4 Interrupt Handler for transmission flow control.
@@ -105,7 +103,7 @@ package body UART_Syslink is
    private
       --  for pause/resume
       Pausing             : Boolean        := False;
-      Remaining_Transfers : UInt16         := 0;
+      Remaining_Transfers : HAL.UInt16     := 0;
       First_Past_Buffer   : System.Address := System.Null_Address;
       --  If we have to resume a transfer, we start from (this address
       --  - the number of transfers remaining).
@@ -115,14 +113,15 @@ package body UART_Syslink is
       procedure Resume_Transfer;
 
       procedure Flow_Control_IRQ_Handler;
-      pragma Attach_Handler (Flow_Control_IRQ_Handler, EXTI4_Interrupt);
+      pragma Attach_Handler (Flow_Control_IRQ_Handler,
+                             Ada.Interrupts.Names.EXTI4_Interrupt);
    end Flow_Control_Handler;
 
    --  Interrupt Handler for reception (DMA not used here).
    protected Rx_IRQ_Handler is
       pragma Interrupt_Priority (Crazyflie_Config.SYSLINK_INTERRUPT_PRIORITY);
 
-      entry Await_Byte_Reception (Rx_Byte : out T_Uint8);
+      entry Await_Byte_Reception (Rx_Byte : out Types.T_Uint8);
 
    private
 
@@ -130,44 +129,45 @@ package body UART_Syslink is
       Rx_Queue        : T_Queue (UART_RX_QUEUE_SIZE);
 
       procedure IRQ_Handler;
-      pragma Attach_Handler (IRQ_Handler, USART6_Interrupt);
+      pragma Attach_Handler (IRQ_Handler,
+                             Ada.Interrupts.Names.USART6_Interrupt);
    end Rx_IRQ_Handler;
 
    --  Public procedures and functions
 
-   -----------------------
-   -- UART_Syslink_Init --
-   -----------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure UART_Syslink_Init is
+   procedure Init is
    begin
       Initialize_USART;
       Configure_USART;
       Initialize_DMA;
       Initialize_Flow_Control;
 
-      Enable (NRF_USART);
+      STM32.USARTs.Enable (STM32.Board.NRF_USART);
 
       Enable_USART_Rx_Interrupts;
-   end UART_Syslink_Init;
+   end Init;
 
-   ----------------------------
-   -- UART_Get_Data_Blocking --
-   ----------------------------
+   -----------------------
+   -- Get_Data_Blocking --
+   -----------------------
 
-   procedure UART_Get_Data_Blocking (Rx_Byte : out T_Uint8) is
+   procedure Get_Data_Blocking (Rx_Byte : out Types.T_Uint8) is
    begin
       Rx_IRQ_Handler.Await_Byte_Reception (Rx_Byte);
-   end UART_Get_Data_Blocking;
+   end Get_Data_Blocking;
 
-   ---------------------------------
-   -- UART_Send_DMA_Data_Blocking --
-   ---------------------------------
+   ----------------------------
+   -- Send_DMA_Data_Blocking --
+   ----------------------------
 
-   procedure UART_Send_DMA_Data_Blocking
+   procedure Send_DMA_Data_Blocking
      (Data_Size : Natural;
       Data      : DMA_Data) is
-      Result : DMA_Error_Code;
+      Result : STM32.DMA.DMA_Error_Code;
    begin
       Flow_Control_Handler.Starting_Transfer
         (Number_Of_Bytes => Data_Size,
@@ -175,24 +175,26 @@ package body UART_Syslink is
 
       Tx_IRQ_Handler.Start_Transfer
         (Source      => Data'Address,
-         Destination => Data_Register_Address (NRF_USART),
-         Data_Count  => UInt16 (Data_Size));
+         Destination =>
+           STM32.USARTs.Data_Register_Address (STM32.Board.NRF_USART),
+         Data_Count  => HAL.UInt16 (Data_Size));
       --  The Crazyflie C code only enables Transfer_Complete
       --  interrupt. Presumably they just stumble on if something goes
       --  wrong.
 
-      Clear_Status (NRF_USART, Transmission_Complete_Indicated);
-      Enable_DMA_Transmit_Requests (NRF_USART);
+      STM32.USARTs.Clear_Status (STM32.Board.NRF_USART,
+                                 STM32.USARTs.Transmission_Complete_Indicated);
+      STM32.USARTs.Enable_DMA_Transmit_Requests (STM32.Board.NRF_USART);
 
       Tx_IRQ_Handler.Wait_For_Completion (Status => Result);
 
       case Result is
-         when DMA_No_Error | DMA_FIFO_Error =>
+         when STM32.DMA.DMA_No_Error | STM32.DMA.DMA_FIFO_Error =>
             null;
          when others =>
             raise Program_Error with Result'Img;
       end case;
-   end UART_Send_DMA_Data_Blocking;
+   end Send_DMA_Data_Blocking;
 
    --  Private procedures and functions
 
@@ -203,23 +205,26 @@ package body UART_Syslink is
    procedure Initialize_USART
    is
    begin
-      Enable_Clock (NRF_RX & NRF_TX);
+      STM32.Device.Enable_Clock (Points => (STM32.Board.NRF_RX,
+                                            STM32.Board.NRF_TX));
 
-      Configure_IO (NRF_RX,
-                    Config => (Mode             => Mode_AF,
-                               AF               => NRF_USART_AF,
-                               AF_Output_Type   => Open_Drain,
-                               AF_Speed         => Speed_25MHz,
-                               Resistors        => Pull_Up));
+      STM32.GPIO.Configure_IO
+        (STM32.Board.NRF_RX,
+         Config => (Mode             => STM32.GPIO.Mode_AF,
+                    AF               => STM32.Board.NRF_USART_AF,
+                    AF_Output_Type   => STM32.GPIO.Open_Drain,
+                    AF_Speed         => STM32.GPIO.Speed_25MHz,
+                    Resistors        => STM32.GPIO.Pull_Up));
 
-      Configure_IO (NRF_TX,
-                    Config => (Mode             => Mode_AF,
-                               AF               => NRF_USART_AF,
-                               AF_Output_Type   => Push_Pull,
-                               AF_Speed         => Speed_25MHz,
-                               Resistors        => Pull_Up));
+      STM32.GPIO.Configure_IO
+        (STM32.Board.NRF_TX,
+         Config => (Mode             => STM32.GPIO.Mode_AF,
+                    AF               => STM32.Board.NRF_USART_AF,
+                    AF_Output_Type   => STM32.GPIO.Push_Pull,
+                    AF_Speed         => STM32.GPIO.Speed_25MHz,
+                    Resistors        => STM32.GPIO.Pull_Up));
 
-      Enable_Clock (NRF_USART);
+      STM32.Device.Enable_Clock (STM32.Board.NRF_USART);
    end Initialize_USART;
 
    ---------------------
@@ -227,6 +232,8 @@ package body UART_Syslink is
    ---------------------
 
    procedure Configure_USART is
+      use STM32.Board;
+      use STM32.USARTs;
    begin
       Disable (NRF_USART);
 
@@ -246,21 +253,22 @@ package body UART_Syslink is
 
    procedure Initialize_DMA is
    begin
-      Enable_Clock (Controller);
+      STM32.Device.Enable_Clock (Controller);
 
-      Configure (Controller,
-                 Stream => Tx_Stream,
-                 Config =>
-                   (Channel                      => Tx_Channel,
-                    Direction                    => Memory_To_Peripheral,
-                    Increment_Peripheral_Address => False,
-                    Increment_Memory_Address     => True,
-                    Peripheral_Data_Format       => Bytes,
-                    Memory_Data_Format           => Bytes,
-                    Operation_Mode               => Normal_Mode,
-                    Priority                     => Priority_High,
-                    FIFO_Enabled                 => False,
-                    others                       => <>));
+      STM32.DMA.Configure
+        (Controller,
+         Stream => Tx_Stream,
+         Config =>
+           (Channel                      => Tx_Channel,
+            Direction                    => STM32.DMA.Memory_To_Peripheral,
+            Increment_Peripheral_Address => False,
+            Increment_Memory_Address     => True,
+            Peripheral_Data_Format       => STM32.DMA.Bytes,
+            Memory_Data_Format           => STM32.DMA.Bytes,
+            Operation_Mode               => STM32.DMA.Normal_Mode,
+            Priority                     => STM32.DMA.Priority_High,
+            FIFO_Enabled                 => False,
+            others                       => <>));
       --  note the controller is disabled by the call to Configure
    end Initialize_DMA;
 
@@ -270,16 +278,18 @@ package body UART_Syslink is
 
    procedure Initialize_Flow_Control is
    begin
-      Enable_Clock (NRF_FLOW_CTRL);
+      STM32.Device.Enable_Clock (STM32.Board.NRF_FLOW_CTRL);
 
-      Configure_IO (NRF_FLOW_CTRL,
-                    Config => (Mode      => Mode_In,
-                               Resistors => Pull_Up));
+      STM32.GPIO.Configure_IO (STM32.Board.NRF_FLOW_CTRL,
+                               Config => (Mode      => STM32.GPIO.Mode_In,
+                                          Resistors => STM32.GPIO.Pull_Up));
 
-      Clear_External_Interrupt (Interrupt_Line_Number (NRF_FLOW_CTRL));
+      STM32.EXTI.Clear_External_Interrupt
+        (STM32.GPIO.Interrupt_Line_Number (STM32.Board.NRF_FLOW_CTRL));
 
-      Configure_Trigger (NRF_FLOW_CTRL,
-                         Trigger => Interrupt_Rising_Falling_Edge);
+      STM32.GPIO.Configure_Trigger
+        (STM32.Board.NRF_FLOW_CTRL,
+         Trigger => STM32.EXTI.Interrupt_Rising_Falling_Edge);
    end Initialize_Flow_Control;
 
    --------------------------------
@@ -288,7 +298,9 @@ package body UART_Syslink is
 
    procedure Enable_USART_Rx_Interrupts is
    begin
-      Enable_Interrupts (NRF_USART, Source => Received_Data_Not_Empty);
+      STM32.USARTs.Enable_Interrupts
+        (STM32.Board.NRF_USART,
+         Source => STM32.USARTs.Received_Data_Not_Empty);
    end Enable_USART_Rx_Interrupts;
 
    --  Tasks and protected objects
@@ -310,14 +322,21 @@ package body UART_Syslink is
       procedure Pause_Transfer is
       begin
          if not Pausing then
-            if Enabled (Controller, Tx_Stream) then
-               Disable_Interrupt
-                 (Controller, Tx_Stream, Transfer_Complete_Interrupt);
-               Disable (Controller, Tx_Stream); -- waits til current tx done
-               Clear_Status
-                 (Controller, Tx_Stream, Transfer_Complete_Indicated);
-               Remaining_Transfers := Current_NDT (Controller, Tx_Stream);
-               --  set the right red LED for 10 ms
+            if STM32.DMA.Enabled (Controller, Tx_Stream) then
+               STM32.DMA.Disable_Interrupt
+                 (Controller,
+                  Tx_Stream,
+                  STM32.DMA.Transfer_Complete_Interrupt);
+               STM32.DMA.Disable (Controller, Tx_Stream);
+               --  Waits til current tx done.
+
+               STM32.DMA.Clear_Status
+                 (Controller,
+                  Tx_Stream,
+                  STM32.DMA.Transfer_Complete_Indicated);
+               Remaining_Transfers :=
+                 STM32.DMA.Current_NDT (Controller, Tx_Stream);
+               --  Flash the right red LED.
                Red_R.Set;
                Pausing := True;
             end if;
@@ -329,24 +348,27 @@ package body UART_Syslink is
       begin
          if Pausing then
             Pausing := False;
-            Set_NDT (Controller, Tx_Stream, Remaining_Transfers);
-            Set_Memory_Buffer
+            STM32.DMA.Set_NDT (Controller, Tx_Stream, Remaining_Transfers);
+            STM32.DMA.Set_Memory_Buffer
               (Controller,
                Tx_Stream,
-               Memory_Buffer_0,
+               STM32.DMA.Memory_Buffer_0,
                First_Past_Buffer - Storage_Offset (Remaining_Transfers));
-            Enable_Interrupt
-              (Controller, Tx_Stream, Transfer_Complete_Interrupt);
-            Clear_Status (NRF_USART, Transmission_Complete_Indicated);
-            Enable (Controller, Tx_Stream);
+            STM32.DMA.Enable_Interrupt
+              (Controller, Tx_Stream, STM32.DMA.Transfer_Complete_Interrupt);
+            STM32.USARTs.Clear_Status
+              (STM32.Board.NRF_USART,
+               STM32.USARTs.Transmission_Complete_Indicated);
+            STM32.DMA.Enable (Controller, Tx_Stream);
          end if;
       end Resume_Transfer;
 
       procedure Flow_Control_IRQ_Handler is
       begin
-         Clear_External_Interrupt (Interrupt_Line_Number (NRF_FLOW_CTRL));
+         STM32.EXTI.Clear_External_Interrupt
+           (STM32.GPIO.Interrupt_Line_Number (STM32.Board.NRF_FLOW_CTRL));
          --  See RM 10.3.14, DMA Transfer Suspension
-         if Set (NRF_FLOW_CTRL) then
+         if STM32.GPIO.Set (STM32.Board.NRF_FLOW_CTRL) then
             Pause_Transfer;
          else
             Resume_Transfer;
@@ -365,7 +387,7 @@ package body UART_Syslink is
       -- Await_Byte_Reception --
       --------------------------
 
-      entry Await_Byte_Reception (Rx_Byte : out T_Uint8)
+      entry Await_Byte_Reception (Rx_Byte : out Types.T_Uint8)
         when Byte_Avalaible is
       begin
          Dequeue (Rx_Queue, Rx_Byte);
@@ -377,14 +399,24 @@ package body UART_Syslink is
       -----------------
 
       procedure IRQ_Handler is
-         Received_Byte : T_Uint8;
+         Received_Byte : Types.T_Uint8;
+         use type HAL.UInt9;
       begin
-         if Status (NRF_USART, Read_Data_Register_Not_Empty) then
-            Received_Byte := T_Uint8 (Current_Input (NRF_USART) and 16#FF#);
-            Clear_Status (NRF_USART, Read_Data_Register_Not_Empty);
+         if STM32.USARTs.Status (STM32.Board.NRF_USART,
+                                 STM32.USARTs.Read_Data_Register_Not_Empty)
+         then
+            Received_Byte :=
+              Types.T_Uint8
+                (STM32.USARTs.Current_Input (STM32.Board.NRF_USART)
+                 and 16#FF#);
+            STM32.USARTs.Clear_Status
+              (STM32.Board.NRF_USART,
+               STM32.USARTs.Read_Data_Register_Not_Empty);
             Enqueue (Rx_Queue, Received_Byte);
             Byte_Avalaible := True;
-         elsif Status (NRF_USART, Overrun_Error_Indicated) then
+         elsif STM32.USARTs.Status (STM32.Board.NRF_USART,
+                                    STM32.USARTs.Overrun_Error_Indicated)
+         then
             --  Flash the left red LED.
             Red_L.Set;
             --  RM0090 rev11 top of p 1001: overrun is cleared by
@@ -396,15 +428,23 @@ package body UART_Syslink is
             --  register to the DR) is discarded. We assume the
             --  missing data can be recovered by higher-level
             --  protocols.
-            Received_Byte := T_Uint8 (Current_Input (NRF_USART) and 16#FF#);
-            Clear_Status (NRF_USART, Read_Data_Register_Not_Empty);
-            Clear_Status (NRF_USART, Overrun_Error_Indicated);
+            Received_Byte :=
+              Types.T_Uint8 (STM32.USARTs.Current_Input (STM32.Board.NRF_USART)
+                             and 16#FF#);
+            STM32.USARTs.Clear_Status
+              (STM32.Board.NRF_USART,
+               STM32.USARTs.Read_Data_Register_Not_Empty);
+            STM32.USARTs.Clear_Status
+              (STM32.Board.NRF_USART,
+               STM32.USARTs.Overrun_Error_Indicated);
          end if;
       end IRQ_Handler;
 
    end Rx_IRQ_Handler;
 
 begin
-   Disable_Interrupts (NRF_USART, Source => Received_Data_Not_Empty);
-   Disable_DMA_Transmit_Requests (NRF_USART);
+   STM32.USARTs.Disable_Interrupts
+     (STM32.Board.NRF_USART,
+      Source => STM32.USARTs.Received_Data_Not_Empty);
+   STM32.USARTs.Disable_DMA_Transmit_Requests (STM32.Board.NRF_USART);
 end UART_Syslink;

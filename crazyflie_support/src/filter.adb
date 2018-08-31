@@ -5,15 +5,17 @@ package body Filter
 is
 
    procedure IIR_LP_Filter_Single
-     (Input       : T_Int32;
-      Attenuation : T_Int32;
-      Filter      : in out T_Int32;
-      Result      : out T_Int32) is
+     (Input       : Types.T_Int32;
+      Attenuation : Types.T_Int32;
+      Filter      : in out Types.T_Int32;
+      Result      : out Types.T_Int32) is
+      use Types;  -- for simplicity, and for Shift_Left etc.
       function T_Int32_To_T_Uint32 is new Ada.Unchecked_Conversion
         (T_Int32, T_Uint32);
       function T_Uint32_To_T_Int32 is new Ada.Unchecked_Conversion
         (T_Uint32, T_Int32);
-      Tmp_Input       : constant T_Uint32 := T_Int32_To_T_Uint32 (Input);
+      Tmp_Input       : constant T_Uint32
+        := T_Int32_To_T_Uint32 (Input);
       Tmp_Attenuation : T_Uint32 := T_Int32_To_T_Uint32 (Attenuation);
       In_Scaled       : T_Uint32;
       Tmp_Filter      : T_Uint32 := T_Int32_To_T_Uint32 (Filter);

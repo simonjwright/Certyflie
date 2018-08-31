@@ -58,15 +58,15 @@ package Parameter is
    --  Global variables and constants
 
    --  Limitation of the variable/group name size.
-   MAX_PARAM_VARIABLE_NAME_LENGTH : constant := 14;
+   MAX_VARIABLE_NAME_LENGTH : constant := 14;
 
    --  Procedures and functions
 
    --  Initialize the parameter subystem.
-   procedure Parameter_Init;
+   procedure Init;
 
    --  Test if the parameter subsystem is initialized.
-   function Parameter_Test return Boolean;
+   function Test return Boolean;
 
    --  Create a parameter group if there is any space left and if the name
    --  is not too long.
@@ -74,7 +74,7 @@ package Parameter is
      (Name        : String;
       Group_ID    : out Natural;
       Has_Succeed : out Boolean)
-   with Pre => Name'Length <= MAX_PARAM_VARIABLE_NAME_LENGTH;
+   with Pre => Name'Length <= MAX_VARIABLE_NAME_LENGTH;
 
    --  Append a variable to a parameter group.
    procedure Append_Parameter_Variable_To_Group
@@ -83,6 +83,6 @@ package Parameter is
       Parameter_Type : Parameter_Variable_Type;
       Variable       : System.Address;
       Has_Succeed    : out Boolean)
-   with Pre => Name'Length <= MAX_PARAM_VARIABLE_NAME_LENGTH;
+   with Pre => Name'Length <= MAX_VARIABLE_NAME_LENGTH;
 
 end Parameter;

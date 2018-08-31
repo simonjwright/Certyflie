@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Certyflie                                   --
 --                                                                          --
---                     Copyright (C) 2015-2017, AdaCore                     --
+--                     Copyright (C) 2015-2018, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -27,13 +27,13 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Types;                    use Types;
+with Types;
 
 package UART_Syslink is
 
    --  Types
 
-   subtype DMA_Data is T_Uint8_Array (1 .. 64);
+   subtype DMA_Data is Types.T_Uint8_Array (1 .. 64);
 
    type USART_Error is
      (No_Err, Parity_Err, Framing_Err, Noise_Err, Overrun_Err);
@@ -41,13 +41,13 @@ package UART_Syslink is
    --  Procedures and functions
 
    --  Initialize the UART Syslink interface.
-   procedure UART_Syslink_Init;
+   procedure Init;
 
    --  Get one byte of data from UART, with a defined timeout.
-   procedure UART_Get_Data_Blocking (Rx_Byte : out T_Uint8);
+   procedure Get_Data_Blocking (Rx_Byte : out Types.T_Uint8);
 
    --  Send data to DMA.
-   procedure UART_Send_DMA_Data_Blocking
+   procedure Send_DMA_Data_Blocking
      (Data_Size : Natural;
       Data      : DMA_Data);
 

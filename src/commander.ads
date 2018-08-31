@@ -27,10 +27,10 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Real_Time; use Ada.Real_Time;
+with Ada.Real_Time;
 
-with CRTP;          use CRTP;
-with Types;         use Types;
+with CRTP;
+with Types;
 pragma Elaborate_All (CRTP);
 
 package Commander
@@ -48,36 +48,36 @@ is
 
    --  Type used to represent different commands
    --  received in a CRTP packet sent from the client.
-   type Commander_CRTP_Values is record
-      Roll   : T_Degrees := 0.0;
-      Pitch  : T_Degrees := 0.0;
-      Yaw    : T_Degrees := 0.0;
-      Thrust : T_Uint16 := 0;
+   type CRTP_Values is record
+      Roll   : Types.T_Degrees := 0.0;
+      Pitch  : Types.T_Degrees := 0.0;
+      Yaw    : Types.T_Degrees := 0.0;
+      Thrust : Types.T_Uint16 := 0;
    end record;
-   pragma Pack (Commander_CRTP_Values);
+   pragma Pack (CRTP_Values);
 
    --  Procedures and functions
 
    --  Initizalize the Commander module.
-   procedure Commander_Init;
+   procedure Init;
 
    --  Test if the Commander module is initialized.
-   function Commander_Test return Boolean;
+   function Test return Boolean;
 
    --  Handler called when a CRTP packet is received in the commander
    --  port queue.
-   procedure Commander_CRTP_Handler (Packet : CRTP_Packet);
+   procedure CRTP_Handler (Packet : CRTP.Packet);
 
    --  Get the commands from the pilot.
-   procedure Commander_Get_RPY
-     (Euler_Roll_Desired  : out T_Degrees;
-      Euler_Pitch_Desired : out T_Degrees;
-      Euler_Yaw_Desired   : out T_Degrees)
+   procedure Get_RPY
+     (Euler_Roll_Desired  : out Types.T_Degrees;
+      Euler_Pitch_Desired : out Types.T_Degrees;
+      Euler_Yaw_Desired   : out Types.T_Degrees)
      with
        Global => (Input => Commander_State);
 
    --  Get the commands types by default or from the client..
-   procedure Commander_Get_RPY_Type
+   procedure Get_RPY_Type
      (Roll_Type  : out RPY_Type;
       Pitch_Type : out RPY_Type;
       Yaw_Type   : out RPY_Type)
@@ -85,33 +85,33 @@ is
        Global => null;
 
    --  Get the thrust from the pilot.
-   procedure Commander_Get_Thrust (Thrust : out T_Uint16)
+   procedure Get_Thrust (Thrust : out Types.T_Uint16)
      with
-       Global => (Input  => Clock_Time,
-                  In_Out => (CRTP_State,
+       Global => (Input  => Ada.Real_Time.Clock_Time,
+                  In_Out => (CRTP.CRTP_State,
                              Commander_State));
 
    --  Get Alt Hold Mode parameters from the pilot..
-   procedure Commander_Get_Alt_Hold
+   procedure Get_Alt_Hold
      (Alt_Hold        : out Boolean;
       Set_Alt_Hold    : out Boolean;
       Alt_Hold_Change : out Float);
 
    --  Cut the trust when inactivity time has been during for too long.
-   procedure Commander_Watchdog
+   procedure Watchdog
      with
-       Global => (Input  => Clock_Time,
-                  In_Out => (CRTP_State,
+       Global => (Input  => Ada.Real_Time.Clock_Time,
+                  In_Out => (CRTP.CRTP_State,
                              Commander_State));
 
 private
 
    --  Global variables and constants
 
-   COMMANDER_WDT_TIMEOUT_STABILIZE : constant Time_Span
-     := Milliseconds (500);
-   COMMANDER_WDT_TIMEOUT_SHUTDOWN  : constant Time_Span
-     := Milliseconds (1000);
+   COMMANDER_WDT_TIMEOUT_STABILIZE : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (500);
+   COMMANDER_WDT_TIMEOUT_SHUTDOWN  : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (1000);
 
    MIN_THRUST        : constant := 1000;
    MAX_THRUST        : constant := 60_000;
@@ -137,11 +137,11 @@ private
        Part_Of => Commander_State;
 
    --  Container for the commander values received via CRTP.
-   Target_Val : array (Boolean) of Commander_CRTP_Values
+   Target_Val : array (Boolean) of CRTP_Values
      with
        Part_Of => Commander_State;
 
-   Last_Update : Time
+   Last_Update : Ada.Real_Time.Time
      with
        Part_Of => Commander_State;
 
@@ -149,23 +149,23 @@ private
 
    --  Reset the watchdog by assigning the Clock current value to Last_Update
    --  variable.
-   procedure Commander_Watchdog_Reset;
-   pragma Inline (Commander_Watchdog_Reset);
+   procedure Watchdog_Reset;
+   pragma Inline (Watchdog_Reset);
 
    --  Get inactivity time since last update.
-   function Commander_Get_Inactivity_Time return Time_Span
+   function Get_Inactivity_Time return Ada.Real_Time.Time_Span
      with
        Volatile_Function;
-   pragma Inline (Commander_Get_Inactivity_Time);
+   pragma Inline (Get_Inactivity_Time);
 
    --  Get target values from a received CRTP packet
    function Get_Commands_From_Packet
-     (Packet : CRTP_Packet) return Commander_CRTP_Values;
+     (Packet : CRTP.Packet) return CRTP_Values;
 
    --  Get Float data from a CRTP Packet.
-   procedure CRTP_Get_Float_Data is new CRTP_Get_Data (Float);
+   procedure CRTP_Get_Float_Data is new CRTP.Get_Data (Float);
 
    --  Get T_Uint16 data from a CRTP Packet.
-   procedure CRTP_Get_T_Uint16_Data is new CRTP_Get_Data (T_Uint16);
+   procedure CRTP_Get_T_Uint16_Data is new CRTP.Get_Data (Types.T_Uint16);
 
 end Commander;

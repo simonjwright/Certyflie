@@ -31,52 +31,52 @@ with Ada.Unchecked_Conversion;
 
 package body CRTP_Service is
 
-   -----------------------
-   -- CRTP_Service_Init --
-   -----------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure CRTP_Service_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
-      CRTP_Register_Callback (CRTP_PORT_LINK,
-                              CRTP_Service_Handler'Access);
+      CRTP.Register_Callback (CRTP.PORT_LINK,
+                              Handler'Access);
 
       Is_Init := True;
-   end CRTP_Service_Init;
+   end Init;
 
-   --------------------------
-   -- CRTP_Service_Handler --
-   --------------------------
+   -------------
+   -- Handler --
+   -------------
 
-   procedure CRTP_Service_Handler (Packet : CRTP_Packet)
+   procedure Handler (Packet : CRTP.Packet)
    is
-      Command     : CRTP_Service_Command;
-      Tx_Packet   : CRTP_Packet := Packet;
+      Cmd         : Command;
+      Tx_Packet   : CRTP.Packet := Packet;
       Has_Succeed : Boolean;
 
-      ------------------------------------------
-      -- CRTP_Channel_To_CRTP_Service_Command --
-      ------------------------------------------
+      -----------------------------
+      -- CRTP_Channel_To_Command --
+      -----------------------------
 
-      function CRTP_Channel_To_CRTP_Service_Command is
-        new Ada.Unchecked_Conversion (CRTP_Channel, CRTP_Service_Command);
+      function CRTP_Channel_To_Command is
+        new Ada.Unchecked_Conversion (CRTP.Channel_T, Command);
    begin
-      Command := CRTP_Channel_To_CRTP_Service_Command (Packet.Channel);
+      Cmd := CRTP_Channel_To_Command (Packet.Channel);
 
-      case Command is
+      case Cmd is
          when Link_Echo =>
-            CRTP_Send_Packet (Tx_Packet, Has_Succeed);
+            CRTP.Send_Packet (Tx_Packet, Has_Succeed);
          when Link_Source =>
-            Tx_Packet.Size := CRTP_MAX_DATA_SIZE;
+            Tx_Packet.Size := CRTP.MAX_DATA_SIZE;
             Tx_Packet.Data_1 := (others => 0);
-            CRTP_Send_Packet (Tx_Packet, Has_Succeed);
+            CRTP.Send_Packet (Tx_Packet, Has_Succeed);
          when others =>
             --  Null packets
             null;
       end case;
-   end CRTP_Service_Handler;
+   end Handler;
 
 end CRTP_Service;

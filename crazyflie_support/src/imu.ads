@@ -28,11 +28,11 @@
 ------------------------------------------------------------------------------
 
 with Ada.Numerics;  use Ada.Numerics;
-with Ada.Real_Time; use Ada.Real_Time;
+with Ada.Real_Time;
 
-with Filter;        use Filter;
-with MPU9250;       use MPU9250;
-with Types;         use Types;
+with Filter;
+with Types;
+with MPU9250;       use MPU9250;  --  in Ada Drivers Library
 
 package IMU
 with SPARK_Mode,
@@ -90,58 +90,62 @@ is
 
    --  Global variables and constants
 
-   IMU_UPDATE_FREQ  : constant := 500.0;
-   IMU_UPDATE_DT    : constant := 1.0 / IMU_UPDATE_FREQ;
-   IMU_UPDATE_DT_MS : constant Time_Span := Milliseconds (2);
+   UPDATE_FREQ  : constant := 500.0;
+   UPDATE_DT    : constant := 1.0 / UPDATE_FREQ;
+   UPDATE_DT_MS : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (2);
 
    --  Number of samples used for bias calculation
-   IMU_NBR_OF_BIAS_SAMPLES      : constant := 1024;
-   GYRO_MIN_BIAS_TIMEOUT_MS     : constant Time_Span := Milliseconds (1_000);
+   NBR_OF_BIAS_SAMPLES      : constant := 1024;
+   GYRO_MIN_BIAS_TIMEOUT_MS : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (1_000);
 
    --  Set ACC_WANTED_LPF1_CUTOFF_HZ to the wanted cut-off freq in Hz.
    --  The highest cut-off freq that will have any affect is fs /(2*pi).
    --  E.g. fs = 350 Hz -> highest cut-off = 350/(2*pi) = 55.7 Hz -> 55 Hz
-   IMU_ACC_WANTED_LPF_CUTOFF_HZ : constant := 4.0;
+   ACC_WANTED_LPF_CUTOFF_HZ : constant := 4.0;
    --  Attenuation should be between 1 to 256.
    --  F0 = fs / 2*pi*attenuation ->
    --  Attenuation = fs / 2*pi*f0
-   IMU_ACC_IIR_LPF_ATTENUATION  : constant Float
-     := Float (IMU_UPDATE_FREQ) / (2.0 * Pi * IMU_ACC_WANTED_LPF_CUTOFF_HZ);
-   IMU_ACC_IIR_LPF_ATT_FACTOR   : constant T_Uint8
-     := T_Uint8 (Float (2 ** IIR_SHIFT) / IMU_ACC_IIR_LPF_ATTENUATION + 0.5);
+   ACC_IIR_LPF_ATTENUATION  : constant Float
+     := Float (UPDATE_FREQ) / (2.0 * Pi * ACC_WANTED_LPF_CUTOFF_HZ);
+   ACC_IIR_LPF_ATT_FACTOR   : constant Types.T_Uint8
+     := Types.T_Uint8 (Float (2 ** Filter.IIR_SHIFT)
+                 / ACC_IIR_LPF_ATTENUATION + 0.5);
 
    GYRO_VARIANCE_BASE        : constant := 2_000.0;
    GYRO_VARIANCE_THRESHOLD_X : constant := (GYRO_VARIANCE_BASE);
    GYRO_VARIANCE_THRESHOLD_Y : constant := (GYRO_VARIANCE_BASE);
    GYRO_VARIANCE_THRESHOLD_Z : constant := (GYRO_VARIANCE_BASE);
 
-   IMU_DEG_PER_LSB_CFG       : constant := MPU9250_DEG_PER_LSB_2000;
-   IMU_G_PER_LSB_CFG         : constant := MPU9250_G_PER_LSB_8;
+   DEG_PER_LSB_CFG       : constant := MPU9250_DEG_PER_LSB_2000;
+   G_PER_LSB_CFG         : constant := MPU9250_G_PER_LSB_8;
 
-   IMU_VARIANCE_MAN_TEST_TIMEOUT : constant Time_Span := Milliseconds (1_000);
-   IMU_MAN_TEST_LEVEL_MAX : constant := 5.0;
+   VARIANCE_MAN_TEST_TIMEOUT : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (1_000);
+   MAN_TEST_LEVEL_MAX : constant := 5.0;
 
    --  Procedures and functions
 
    --  Initialize the IMU device/
-   procedure IMU_Init (Use_Mag    : Boolean;
-                       DLPF_256Hz : Boolean);
+   procedure Init (Use_Mag    : Boolean;
+                   DLPF_256Hz : Boolean);
 
-   --  Test if the IMU device is initialized/
-   function IMU_Test return Boolean;
+   --  Test if the IMU device is initialized.
+   function Test return Boolean;
 
-   --  Manufacting test to ensure that IMU is not broken.
-   function IMU_6_Manufacturing_Test return Boolean;
+   --  Manufacturing test to ensure that IMU is not broken.
+   function Manufacturing_Test_6 return Boolean;
 
    --  Read gyro and accelerometer measurements from the IMU.
-   procedure IMU_6_Read
+   procedure Read_6
      (Gyro : in out Gyroscope_Data;
       Acc  : in out Accelerometer_Data)
      with
        Global => null;
 
    --  Read gyro, accelerometer and magnetometer measurements from the IMU.
-   procedure IMU_9_Read
+   procedure Read_9
      (Gyro : in out Gyroscope_Data;
       Acc  : in out Accelerometer_Data;
       Mag  : in out Magnetometer_Data)
@@ -149,12 +153,12 @@ is
        Global => null;
 
    --  Calibrates the IMU. Returns True if successful, False otherwise.
-   function IMU_6_Calibrate return Boolean
+   function Calibrate_6 return Boolean
      with
        Global => (Input => IMU_State);
 
    --  Return True if the IMU has an initialized barometer, False otherwise.
-   function IMU_Has_Barometer return Boolean
+   function Has_Barometer return Boolean
      with
        Global => (Input => IMU_State);
 
@@ -162,15 +166,15 @@ private
    --  Types
 
    type Axis3_T_Int16 is record
-      X : T_Int16 := 0;
-      Y : T_Int16 := 0;
-      Z : T_Int16 := 0;
+      X : Types.T_Int16 := 0;
+      Y : Types.T_Int16 := 0;
+      Z : Types.T_Int16 := 0;
    end record;
 
    type Axis3_T_Int32 is record
-      X : T_Int32 := 0;
-      Y : T_Int32 := 0;
-      Z : T_Int32 := 0;
+      X : Types.T_Int32 := 0;
+      Y : Types.T_Int32 := 0;
+      Z : Types.T_Int32 := 0;
    end record;
 
    type Axis3_Float is record
@@ -205,7 +209,7 @@ private
         Z => AF.Z / Float (Val)));
 
    type Bias_Buffer_Array is
-     array (1 .. IMU_NBR_OF_BIAS_SAMPLES) of Axis3_T_Int16;
+     array (1 .. NBR_OF_BIAS_SAMPLES) of Axis3_T_Int16;
 
    --  Type used for bias calculation
    type Bias_Object is record
@@ -239,10 +243,10 @@ private
      with
        Part_Of => IMU_State;
 
-   Variance_Sample_Time  : Time
+   Variance_Sample_Time  : Ada.Real_Time.Time
      with
        Part_Of => IMU_State;
-   IMU_Acc_Lp_Att_Factor : T_Uint8
+   Acc_Lp_Att_Factor : Types.T_Uint8
      with
        Part_Of => IMU_State;
 
@@ -288,33 +292,33 @@ private
 
    --  Add a new value to the variance buffer and if it is full
    --  replace the oldest one. Thus a circular buffer.
-   procedure IMU_Add_Bias_Value
+   procedure Add_Bias_Value
      (Bias_Obj : in out Bias_Object;
       Value    : Axis3_T_Int16);
 
    --  Check if the variances is below the predefined thresholds.
    --  The bias value should have been added before calling this.
-   procedure IMU_Find_Bias_Value
+   procedure Find_Bias_Value
      (Bias_Obj       : in out Bias_Object;
       Has_Found_Bias : out Boolean);
 
    --  Calculate the variance and mean for the bias buffer.
-   procedure IMU_Calculate_Variance_And_Mean
+   procedure Calculate_Variance_And_Mean
      (Bias_Obj : Bias_Object;
       Variance : out Axis3_Float;
       Mean     : out Axis3_Float);
 
    --  Apply IIR LP Filter on each axis.
-   procedure IMU_Acc_IRR_LP_Filter
+   procedure Acc_IRR_LP_Filter
      (Input         : Axis3_T_Int16;
       Output        : out Axis3_T_Int32;
       Stored_Values : in out Axis3_T_Int32;
-      Attenuation   : T_Int32);
+      Attenuation   : Types.T_Int32);
 
    --  Compensate for a miss-aligned accelerometer. It uses the trim
    --  data gathered from the UI and written in the config-block to
    --  rotate the accelerometer to be aligned with gravity.
-   procedure IMU_Acc_Align_To_Gravity
+   procedure Acc_Align_To_Gravity
      (Input  : Axis3_T_Int32;
       Output : out Axis3_Float);
 

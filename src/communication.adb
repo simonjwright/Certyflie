@@ -27,43 +27,43 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Console;          use Console;
-with CRTP_Service;     use CRTP_Service;
-with Platform_Service; use Platform_Service;
-with Link_Interface;   use Link_Interface;
+with Console;
+with CRTP_Service;
+with Platform_Service;
+with Link_Interface;
 
 package body Communication is
 
-   ------------------------
-   -- Communication_Init --
-   ------------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Communication_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
       --  Initialize the link layer (Radiolink by default in Config.ads).
-      Link_Init;
+      Link_Interface.Init;
 
       --  Initialize low and high level services.
-      CRTP_Service_Init;
-      Platform_Service_Init;
+      CRTP_Service.Init;
+      Platform_Service.Init;
 
       --  Initialize the console module.
-      Console_Init;
+      Console.Init;
 
       Is_Init := True;
-   end Communication_Init;
+   end Init;
 
-   ------------------------
-   -- Communication_Test --
-   ------------------------
+   ----------
+   -- Test --
+   ----------
 
-   function Communication_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Init;
-   end Communication_Test;
+   end Test;
 
 end Communication;

@@ -28,112 +28,112 @@
 ------------------------------------------------------------------------------
 
 with Ada.Unchecked_Conversion;
-with Types;                    use Types;
+with Types;
 
 package body Memory is
 
    --  Public procedures and functions
 
-   -----------------
-   -- Memory_Init --
-   -----------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Memory_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
-      CRTP_Register_Callback (CRTP_PORT_MEM, Memory_CRTP_Handler'Access);
+      CRTP.Register_Callback (CRTP.PORT_MEM, CRTP_Handler'Access);
 
       Is_Init := True;
-   end Memory_Init;
+   end Init;
 
-   -----------------
-   -- Memory_Test --
-   -----------------
+   ----------
+   -- Test --
+   ----------
 
-   function Memory_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Init;
-   end Memory_Test;
+   end Test;
 
    --  Private procedures and functions
 
-   -------------------------
-   -- Memory_CRTP_Handler --
-   -------------------------
+   ------------------
+   -- CRTP_Handler --
+   ------------------
 
-   procedure Memory_CRTP_Handler (Packet : CRTP_Packet)
+   procedure CRTP_Handler (Packet : CRTP.Packet)
    is
       ------------------------------------
       -- CRTP_Channel_To_Memory_Channel --
       ------------------------------------
 
       function CRTP_Channel_To_Memory_Channel is new Ada.Unchecked_Conversion
-        (CRTP_Channel, Memory_Channel);
+        (CRTP.Channel_T, Memory_Channel);
       Channel : Memory_Channel;
    begin
       Channel := CRTP_Channel_To_Memory_Channel (Packet.Channel);
 
       case Channel is
-         when MEM_SETTINGS_CH =>
-            Memory_Settings_Process (Packet);
-         when MEM_READ_CH =>
+         when SETTINGS_CH =>
+            Settings_Process (Packet);
+         when READ_CH =>
             null;
-         when MEM_WRITE_CH =>
+         when WRITE_CH =>
             null;
       end case;
-   end Memory_CRTP_Handler;
+   end CRTP_Handler;
 
-   -----------------------------
-   -- Memory_Settings_Process --
-   -----------------------------
+   ----------------------
+   -- Settings_Process --
+   ----------------------
 
-   procedure Memory_Settings_Process (Packet : CRTP_Packet)
+   procedure Settings_Process (Packet : CRTP.Packet)
    is
       -------------------------------
       -- T_Uint8_To_Memory_Command --
       -------------------------------
 
       function T_Uint8_To_Memory_Command is new Ada.Unchecked_Conversion
-        (T_Uint8, Memory_Command);
+        (Types.T_Uint8, Memory_Command);
 
       ------------------------------
       -- CRTP_Append_T_Uint8_Data --
       ------------------------------
 
-      procedure CRTP_Append_T_Uint8_Data is new CRTP_Append_Data
-        (T_Uint8);
+      procedure CRTP_Append_T_Uint8_Data is new CRTP.Append_Data
+        (Types.T_Uint8);
 
       Command        : Memory_Command;
-      Packet_Handler : CRTP_Packet_Handler;
+      Packet_Handler : CRTP.Packet_Handler;
       Has_Succeed    : Boolean;
       pragma Unreferenced (Has_Succeed);
    begin
       Command := T_Uint8_To_Memory_Command (Packet.Data_1 (1));
 
-      Packet_Handler := CRTP_Create_Packet
-        (CRTP_PORT_MEM, Memory_Channel'Enum_Rep (MEM_SETTINGS_CH));
+      Packet_Handler := CRTP.Create_Packet
+        (CRTP.PORT_MEM, Memory_Channel'Enum_Rep (SETTINGS_CH));
       CRTP_Append_T_Uint8_Data
         (Packet_Handler,
          Memory_Command'Enum_Rep (Command),
          Has_Succeed);
 
       case Command is
-         when MEM_CMD_GET_NBR =>
+         when CMD_GET_NBR =>
             --  TODO: for now we just send 0 instead of the real number
             --  of One Wire memories + EEPROM memory.
             CRTP_Append_T_Uint8_Data
               (Packet_Handler,
                0,
                Has_Succeed);
-            CRTP_Send_Packet
-              (CRTP_Get_Packet_From_Handler (Packet_Handler),
+            CRTP.Send_Packet
+              (CRTP.Get_Packet_From_Handler (Packet_Handler),
                Has_Succeed);
-         when MEM_CMD_GET_INFO =>
+         when CMD_GET_INFO =>
             null;
       end case;
-   end Memory_Settings_Process;
+   end Settings_Process;
 
 end Memory;

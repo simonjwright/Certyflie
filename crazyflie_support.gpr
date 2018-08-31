@@ -5,6 +5,11 @@ with "crazyflie_support/Ada_Drivers_Library/ada_drivers_library";
 
 library project Crazyflie_Support is
 
+   for Target use "arm-eabi";
+   for Runtime ("ada") use
+     external ("RUNTIME",
+               external ("HOME") & "/cortex-gnat-rts/local/stm32f4");
+
    type BUILD_TYPE is
       ("Debug", "Production");
    Build : BUILD_Type := external ("BUILD", "Debug");

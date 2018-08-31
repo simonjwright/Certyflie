@@ -27,19 +27,19 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Real_Time;               use Ada.Real_Time;
-with Ada.Real_Time.Timing_Events; use Ada.Real_Time.Timing_Events;
+with Ada.Real_Time;
+with Ada.Real_Time.Timing_Events;
 
-with STM32.Board;                 use STM32.Board;
+with STM32.Board;
 
 package LEDS is
 
-   subtype Crazyflie_LED is User_LED;
-   LED_Blue_L  : Crazyflie_LED renames STM32.Board.LED_Blue_L;
-   LED_Green_L : Crazyflie_LED renames STM32.Board.LED_Green_L;
-   LED_Green_R : Crazyflie_LED renames STM32.Board.LED_Green_R;
-   LED_Red_L   : Crazyflie_LED renames STM32.Board.LED_Red_L;
-   LED_Red_R   : Crazyflie_LED renames STM32.Board.LED_Red_R;
+   subtype Crazyflie_LED is STM32.Board.User_LED;
+   Blue_L  : Crazyflie_LED renames STM32.Board.LED_Blue_L;
+   Green_L : Crazyflie_LED renames STM32.Board.LED_Green_L;
+   Green_R : Crazyflie_LED renames STM32.Board.LED_Green_R;
+   Red_L   : Crazyflie_LED renames STM32.Board.LED_Red_L;
+   Red_R   : Crazyflie_LED renames STM32.Board.LED_Red_R;
 
    type Battery_State is
      (Initial_State,
@@ -66,23 +66,16 @@ package LEDS is
    subtype Valid_Link_State is Link_State range Not_Connected .. Connected;
 
    --  Initialize the Crazyflie LEDs.
-   procedure LEDS_Init;
+   procedure Init;
 
    --  Test if the LEDs are initialized.
-   function LEDS_Test return Boolean;
+   function Test return Boolean;
 
-   --  Enables the LED if Value = True, disables if Value = False.
-   procedure Set_LED (LED : in out Crazyflie_LED; Value : Boolean);
-
-   --  Whether the LED is lid or off
-   function LED_Set (LED : Crazyflie_LED) return Boolean
-     renames STM32.Board.Is_On;
-
-   procedure Toggle_LED (LED : in out Crazyflie_LED)
-                         renames STM32.Board.Toggle_LED;
+   procedure Toggle (LED : in out Crazyflie_LED)
+     renames STM32.Board.Toggle_LED;
 
    --  Switch off all the Crazyflie LEDs.
-   procedure Reset_All_LEDs;
+   procedure Reset_All renames STM32.Board.All_LEDs_Off;
 
    procedure Set_System_State (State : Valid_System_State);
    procedure Set_Battery_State (State : Valid_Battery_State);
@@ -103,11 +96,20 @@ package LEDS is
 
 private
 
+   package ARTTE renames Ada.Real_Time.Timing_Events;
+
    Is_Initialized : Boolean := False;
+
+   --  Enables the LED if Value = True, disables if Value = False.
+   procedure Set (LED : in out Crazyflie_LED; Value : Boolean);
+
+   --  Whether the LED is lit or off
+   function Is_Set (LED : Crazyflie_LED) return Boolean
+     renames STM32.Board.Is_On;
 
    --  An LED animation targets a specific LED and switches it on/off according
    --  to its blink period.
-   type LED_Animation is new Timing_Event with record
+   type Animation is new ARTTE.Timing_Event with record
       LED          : Crazyflie_LED;
       Blink_Period : Duration;
    end record;
@@ -115,18 +117,18 @@ private
    --  The individual LED animations corresponding to the various individual
    --  values of Crazyflie_LED_Status. A period of zero represents constant
    --  "on" rather than blinking.
-   System_Animations : array (Valid_System_State) of LED_Animation :=
-                         (Self_Test   => (Timing_Event with LED_Red_R, 0.1),
-                          Calibrating => (Timing_Event with LED_Green_R, 0.1),
-                          Failure     => (Timing_Event with LED_Red_R, 0.0),
-                          Ready       => (Timing_Event with LED_Green_R, 0.5),
-                          Connected   => (Timing_Event with LED_Green_R, 0.0));
+   System_Animations : array (Valid_System_State) of Animation :=
+     (Self_Test   => (ARTTE.Timing_Event with Red_R, 0.1),
+      Calibrating => (ARTTE.Timing_Event with Green_R, 0.1),
+      Failure     => (ARTTE.Timing_Event with Red_R, 0.0),
+      Ready       => (ARTTE.Timing_Event with Green_R, 0.5),
+      Connected   => (ARTTE.Timing_Event with Green_R, 0.0));
 
-   Battery_Animations : array (Valid_Battery_State) of LED_Animation :=
-                          (On_Battery => (Timing_Event with LED_Blue_L, 3.0),
-                           Low_Power  => (Timing_Event with LED_Red_L, 0.5),
-                           Charging   => (Timing_Event with LED_Blue_L, 0.5),
-                           Charged    => (Timing_Event with LED_Blue_L, 0.0));
+   Battery_Animations : array (Valid_Battery_State) of Animation :=
+     (On_Battery => (ARTTE.Timing_Event with Blue_L, 3.0),
+      Low_Power  => (ARTTE.Timing_Event with Red_L, 0.5),
+      Charging   => (ARTTE.Timing_Event with Blue_L, 0.5),
+      Charged    => (ARTTE.Timing_Event with Blue_L, 0.0));
 
    --  The package global for the status that determines which LEDs are active.
    --  Controlled by procedure Enable_LED_Status.
@@ -137,18 +139,18 @@ private
    --  The PO containing the handler for blinking the LEDs corresponding to the
    --  value of Current_LED_Status. The handler is passed an LED_Animation
    --  value that is derived from type Timing_Event.
-   protected LED_Status_Event_Handler is
+   protected Status_Event_Handler is
       pragma Interrupt_Priority;
 
       --  Toggles the animation's LED and sets itself as the handler for
       --  the next expiration occurrence. We must use this formal parameter
       --  type (the "base class") for the sake of compatibility with the
       --  Timing_Event_Handler procedure pointer, but the object passed will be
-      --  of type LED_Animation, derived from Timing_Event and thus compatible
+      --  of type Animation, derived from Timing_Event and thus compatible
       --  as an actual parameter.
-      procedure Toggle_LED_Status (Event : in out Timing_Event);
+      procedure Toggle_Status (Event : in out ARTTE.Timing_Event);
 
-   end LED_Status_Event_Handler;
+   end Status_Event_Handler;
 
    type Flasher (The_LED : not null access Crazyflie_LED)
      is new Ada.Real_Time.Timing_Events.Timing_Event with null record;

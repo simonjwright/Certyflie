@@ -27,12 +27,12 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Real_Time;           use Ada.Real_Time;
+with Ada.Real_Time;
 
-with Commander;               use Commander;
-with IMU;                     use IMU;
+with Commander;
+with IMU;
 with Interfaces.C;
-with Types;                   use Types;
+with Types;
 
 package Free_Fall
 with SPARK_Mode,
@@ -49,22 +49,22 @@ is
 
    --  Check if an event (Free fall or Landing) has occured giving it
    --  accelerometer data.
-   procedure FF_Check_Event (Acc : Accelerometer_Data)
+   procedure FF_Check_Event (Acc : IMU.Accelerometer_Data)
      with
-       Global => (Input  => Clock_Time,
+       Global => (Input  => Ada.Real_Time.Clock_Time,
                   In_Out => FF_State);
 
    --  Override the previous commands if in recovery mode.
    procedure FF_Get_Recovery_Commands
      (Euler_Roll_Desired  : in out Float;
       Euler_Pitch_Desired : in out Float;
-      Roll_Type           : in out RPY_Type;
-      Pitch_Type          : in out RPY_Type)
+      Roll_Type           : in out Commander.RPY_Type;
+      Pitch_Type          : in out Commander.RPY_Type)
      with
        Global => (Input => FF_State);
 
    --  Override the previous thrust if in recovery mode.
-   procedure FF_Get_Recovery_Thrust (Thrust : in out T_Uint16)
+   procedure FF_Get_Recovery_Thrust (Thrust : in out Types.T_Uint16)
      with
        Global => (In_Out => FF_State);
 
@@ -76,33 +76,33 @@ private
    LANDING_NUMBER_OF_SAMPLES : constant Natural := 15;
 
    --  Thrust related variables.
-   MAX_RECOVERY_THRUST       : constant T_Uint16 := 48_000;
-   MIN_RECOVERY_THRUST       : constant T_Uint16 := 22_000;
-   RECOVERY_THRUST_DECREMENT : constant T_Uint16 := 100;
+   MAX_RECOVERY_THRUST       : constant Types.T_Uint16 := 48_000;
+   MIN_RECOVERY_THRUST       : constant Types.T_Uint16 := 22_000;
+   RECOVERY_THRUST_DECREMENT : constant Types.T_Uint16 := 100;
 
    --  Number of successive times that acceleration along Z axis must
    --  be in the threshold to detect a Free Fall.
-   FF_DURATION               : constant T_Uint16 := 30;
+   FF_DURATION               : constant Types.T_Uint16 := 30;
 
    --  Stabiliation period after a landing, during which free falls can't
    --  be detected.
-   STABILIZATION_PERIOD_AFTER_LANDING : constant Time_Span
-     := Milliseconds (1_000);
+   STABILIZATION_PERIOD_AFTER_LANDING : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (1_000);
    --  Used by a watchdog to ensure that we cut the thrust after a free fall,
    --  even if the drone has not recovered.
-   RECOVERY_TIMEOUT                   : constant Time_Span
-     := Milliseconds (6_000);
+   RECOVERY_TIMEOUT                   : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (6_000);
 
    --  If the derivative is superior to this value during the recovering phase,
    --  it means that the drone has landed.
-   LANDING_DERIVATIVE_THRESHOLD       : constant T_Alpha := 0.25;
+   LANDING_DERIVATIVE_THRESHOLD       : constant Types.T_Alpha := 0.25;
 
    --  Types
 
    --  Threshold used to detect when the drone is in Free Fall.
    --  This threshold is compared with accelerometer measurements for
    --  Z axis.
-   subtype Free_Fall_Threshold is T_Acc range -0.2 .. 0.2;
+   subtype Free_Fall_Threshold is IMU.T_Acc range -0.2 .. 0.2;
 
    --  Type used to prove that we can't have a buffer overflow
    --  when collecting accelerometer samples.
@@ -112,7 +112,8 @@ private
    --  Type used to collect measurement samples and easily calculate
    --  their variance and mean.
    type FF_Acc_Data_Collector  is record
-      Samples : T_Acc_Array (T_Acc_Data_Collector_Index) := (others => 0.0);
+      Samples : IMU.T_Acc_Array (T_Acc_Data_Collector_Index)
+        := (others => 0.0);
       Index   : T_Acc_Data_Collector_Index := 1;
    end record;
 
@@ -123,15 +124,15 @@ private
      with Part_Of => FF_State;
 
    --  Free Fall features internal variables.
-   FF_Duration_Counter      : T_Uint16 := 0
+   FF_Duration_Counter      : Types.T_Uint16 := 0
      with Part_Of => FF_State;
    In_Recovery              : Boolean := False
      with Part_Of => FF_State;
-   Recovery_Thrust          : T_Uint16 := MAX_RECOVERY_THRUST
+   Recovery_Thrust          : Types.T_Uint16 := MAX_RECOVERY_THRUST
      with Part_Of => FF_State;
-   Last_Landing_Time        : Time := Time_First
+   Last_Landing_Time        : Ada.Real_Time.Time := Ada.Real_Time.Time_First
      with Part_Of => FF_State;
-   Last_FF_Detected_Time    : Time := Time_First
+   Last_FF_Detected_Time    : Ada.Real_Time.Time := Ada.Real_Time.Time_First
      with Part_Of => FF_State;
    Landing_Data_Collector   : FF_Acc_Data_Collector
      with Part_Of => FF_State;
@@ -140,7 +141,7 @@ private
 
    --  Detect if the drone is in free fall with accelerometer data.
    procedure FF_Detect_Free_Fall
-     (Acc         : Accelerometer_Data;
+     (Acc         : IMU.Accelerometer_Data;
       FF_Detected : out Boolean);
 
    --  Detect if the drone has landed with accelerometer data.
@@ -153,7 +154,7 @@ private
    --  Add accelerometer sample for Z axis
    --  to the specified FF_Acc_Data_Collector.
    procedure Add_Acc_Z_Sample
-     (Acc_Z          : T_Acc;
+     (Acc_Z          : IMU.T_Acc;
       Data_Collector : in out FF_Acc_Data_Collector);
    pragma Inline (Add_Acc_Z_Sample);
 
@@ -162,12 +163,12 @@ private
      (Data_Collector : FF_Acc_Data_Collector) return Float;
 
    --  Get the time since last landing after a recovery from a free fall.
-   function Get_Time_Since_Last_Landing return Time_Span
+   function Get_Time_Since_Last_Landing return Ada.Real_Time.Time_Span
      with
        Volatile_Function;
 
    --  Get the time since the last free fall detection.
-   function Get_Time_Since_Last_Free_Fall return Time_Span
+   function Get_Time_Since_Last_Free_Fall return Ada.Real_Time.Time_Span
      with
        Volatile_Function;
 

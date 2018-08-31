@@ -1,0 +1,13 @@
+# Emacs ada-mode project file.
+
+# Used to set up environment variables for crazyflie.gpr (aggregate
+# projects can do this, but they severely limit the use of package
+# Builder in projects called up via the aggregate).
+
+gpr_file=crazyflie.gpr
+target=arm-eabi-
+runtime=$HOME/cortex-gnat-rts/local/stm32f4
+$RUNTIME=$HOME/cortex-gnat-rts/local/stm32f4
+$PLATFORM_BUILD=Production
+$ADL_BUILD=Production
+$ADL_BUILD_CHECKS=Enabled

@@ -27,9 +27,7 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Unchecked_Conversion;
-
-with Safety;                   use Safety;
+with Safety;
 
 package body Commander
 with SPARK_Mode,
@@ -44,43 +42,46 @@ with SPARK_Mode,
 is
    --  Private procedures and functions
 
-   ------------------------------
-   -- Commander_Watchdog_Reset --
-   ------------------------------
+   --------------------
+   -- Watchdog_Reset --
+   --------------------
 
-   procedure Commander_Watchdog_Reset is
+   procedure Watchdog_Reset is
    begin
-      CRTP_Set_Is_Connected (True);
+      CRTP.Set_Is_Connected (True);
 
-      Last_Update := Clock;
-   end Commander_Watchdog_Reset;
+      Last_Update := Ada.Real_Time.Clock;
+   end Watchdog_Reset;
 
-   -----------------------------------
-   -- Commander_Get_Inactivity_Time --
-   -----------------------------------
+   -------------------------
+   -- Get_Inactivity_Time --
+   -------------------------
 
-   function Commander_Get_Inactivity_Time return Time_Span
+   function Get_Inactivity_Time return Ada.Real_Time.Time_Span
    is
-      Current_Time : constant Time := Clock;
+      Current_Time : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+      use type Ada.Real_Time.Time;
    begin
       return Current_Time - Last_Update;
-   end Commander_Get_Inactivity_Time;
+   end Get_Inactivity_Time;
 
-   ------------------------
-   -- Commander_Watchdog --
-   ------------------------
+   --------------
+   -- Watchdog --
+   --------------
 
-   procedure Commander_Watchdog is
+   procedure Watchdog is
       Used_Side : Boolean;
-      Time_Since_Last_Update : Time_Span;
+      Time_Since_Last_Update : Ada.Real_Time.Time_Span;
+
+      use type Ada.Real_Time.Time_Span;
    begin
       --  To prevent the change of Side value when this is called
       Used_Side := Side;
 
-      Time_Since_Last_Update := Commander_Get_Inactivity_Time;
+      Time_Since_Last_Update := Get_Inactivity_Time;
 
       if Time_Since_Last_Update > COMMANDER_WDT_TIMEOUT_STABILIZE then
-         CRTP_Set_Is_Connected (False);
+         CRTP.Set_Is_Connected (False);
 
          Target_Val (Used_Side).Roll := 0.0;
          Target_Val (Used_Side).Pitch := 0.0;
@@ -96,15 +97,15 @@ is
       else
          Is_Inactive := False;
       end if;
-   end Commander_Watchdog;
+   end Watchdog;
 
    --  Public procedures and functions
 
-   --------------------
-   -- Commander_Init --
-   --------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Commander_Init
+   procedure Init
      with SPARK_Mode => Off
    is
    begin
@@ -112,34 +113,34 @@ is
          return;
       end if;
 
-      Last_Update := Clock;
-      CRTP_Register_Callback
-        (CRTP_PORT_COMMANDER, Commander_CRTP_Handler'Access);
+      Last_Update := Ada.Real_Time.Clock;
+      CRTP.Register_Callback
+        (CRTP.PORT_COMMANDER, CRTP_Handler'Access);
 
       Is_Init := True;
-   end Commander_Init;
+   end Init;
 
-   --------------------
-   -- Commander_Test --
-   --------------------
+   ----------
+   -- Test --
+   ----------
 
-   function Commander_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Init;
-   end Commander_Test;
+   end Test;
 
    ------------------------------
    -- Get_Commands_From_Packet --
    ------------------------------
 
    function Get_Commands_From_Packet
-     (Packet : CRTP_Packet) return Commander_CRTP_Values
+     (Packet : CRTP.Packet) return CRTP_Values
    is
-      Commands     : Commander_CRTP_Values;
-      Handler      : CRTP_Packet_Handler;
+      Commands     : CRTP_Values;
+      Handler      : CRTP.Packet_Handler;
       Has_Succeed  : Boolean;
    begin
-      Handler := CRTP_Get_Handler_From_Packet (Packet);
+      Handler := CRTP.Get_Handler_From_Packet (Packet);
 
       pragma Warnings (Off, "unused assignment",
                        Reason => "Has_Succeed can't be equal to false here");
@@ -152,11 +153,12 @@ is
       return Commands;
    end Get_Commands_From_Packet;
 
-   ----------------------------
-   -- Commander_CRTP_Handler --
-   ----------------------------
+   ------------------
+   -- CRTP_Handler --
+   ------------------
 
-   procedure Commander_CRTP_Handler (Packet : CRTP_Packet) is
+   procedure CRTP_Handler (Packet : CRTP.Packet) is
+      use type Types.T_Uint16;
    begin
       Side := not Side;
       Target_Val (Side) := Get_Commands_From_Packet (Packet);
@@ -165,17 +167,17 @@ is
          Thrust_Locked := False;
       end if;
 
-      Commander_Watchdog_Reset;
-   end Commander_CRTP_Handler;
+      Watchdog_Reset;
+   end CRTP_Handler;
 
-   -----------------------
-   -- Commander_Get_RPY --
-   -----------------------
+   -------------
+   -- Get_RPY --
+   -------------
 
-   procedure Commander_Get_RPY
-     (Euler_Roll_Desired  : out T_Degrees;
-      Euler_Pitch_Desired : out T_Degrees;
-      Euler_Yaw_Desired   : out T_Degrees)
+   procedure Get_RPY
+     (Euler_Roll_Desired  : out Types.T_Degrees;
+      Euler_Pitch_Desired : out Types.T_Degrees;
+      Euler_Yaw_Desired   : out Types.T_Degrees)
    is
       Used_Side : Boolean;
    begin
@@ -185,13 +187,13 @@ is
       Euler_Roll_Desired := Target_Val (Used_Side).Roll;
       Euler_Pitch_Desired := Target_Val (Used_Side).Pitch;
       Euler_Yaw_Desired := Target_Val (Used_Side).Yaw;
-   end Commander_Get_RPY;
+   end Get_RPY;
 
-   ----------------------------
-   -- Commander_Get_RPY_Type --
-   ----------------------------
+   ------------------
+   -- Get_RPY_Type --
+   ------------------
 
-   procedure Commander_Get_RPY_Type
+   procedure Get_RPY_Type
      (Roll_Type  : out RPY_Type;
       Pitch_Type : out RPY_Type;
       Yaw_Type   : out RPY_Type) is
@@ -199,31 +201,31 @@ is
       Roll_Type := ANGLE;
       Pitch_Type := ANGLE;
       Yaw_Type := RATE;
-   end Commander_Get_RPY_Type;
+   end Get_RPY_Type;
 
-   --------------------------
-   -- Commander_Get_Thrust --
-   --------------------------
+   ----------------
+   -- Get_Thrust --
+   ----------------
 
-   procedure Commander_Get_Thrust (Thrust : out T_Uint16) is
-      Raw_Thrust : T_Uint16;
+   procedure Get_Thrust (Thrust : out Types.T_Uint16) is
+      Raw_Thrust : Types.T_Uint16;
    begin
       Raw_Thrust := Target_Val (Side).Thrust;
 
       if Thrust_Locked then
          Thrust := 0;
       else
-         Thrust := Saturate (Raw_Thrust, 0, MAX_THRUST);
+         Thrust := Safety.Saturate (Raw_Thrust, 0, MAX_THRUST);
       end if;
 
-      Commander_Watchdog;
-   end Commander_Get_Thrust;
+      Watchdog;
+   end Get_Thrust;
 
-   ----------------------------
-   -- Commander_Get_Alt_Hold --
-   ----------------------------
+   ------------------
+   -- Get_Alt_Hold --
+   ------------------
 
-   procedure Commander_Get_Alt_Hold
+   procedure Get_Alt_Hold
      (Alt_Hold        : out Boolean;
       Set_Alt_Hold    : out Boolean;
       Alt_Hold_Change : out Float) is
@@ -237,6 +239,6 @@ is
          else
             0.0);
       Alt_Hold_Mode_Old := Alt_Hold_Mode;
-   end Commander_Get_Alt_Hold;
+   end Get_Alt_Hold;
 
 end Commander;

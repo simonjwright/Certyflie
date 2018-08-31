@@ -29,10 +29,9 @@
 
 with Ada.Unchecked_Conversion;
 
-with CRTP;      use CRTP;
-with Types;     use Types;
-
 with CRC;
+with CRTP;
+with Types;
 
 package body Parameter is
 
@@ -40,38 +39,38 @@ package body Parameter is
 
    --  Type representing all the available parameter module CRTP channels.
    type Parameter_Channel is
-     (PARAM_TOC_CH,
-      PARAM_READ_CH,
-      PARAM_WRITE_CH,
-      PARAM_MISC_CH);
+     (TOC_CH,
+      READ_CH,
+      WRITE_CH,
+      MISC_CH);
    for Parameter_Channel use
-     (PARAM_TOC_CH   => 0,
-      PARAM_READ_CH  => 1,
-      PARAM_WRITE_CH => 2,
-      PARAM_MISC_CH  => 3);
+     (TOC_CH   => 0,
+      READ_CH  => 1,
+      WRITE_CH => 2,
+      MISC_CH  => 3);
    for Parameter_Channel'Size use 2;
 
    --  Type representing all the param commands.
-   --  PARAM_CMD_GET_INFO is requested at connexion to fetch the TOC.
-   --  PARAM_CMD_GET_ITEM is requested whenever the client wants to
+   --  GET_INFO is requested at connexion to fetch the TOC.
+   --  GET_ITEM is requested whenever the client wants to
    --  fetch the newest variable data.
    type Parameter_TOC_Command is
-     (PARAM_CMD_GET_ITEM,
-      PARAM_CMD_GET_INFO);
+     (GET_ITEM,
+      GET_INFO);
    for Parameter_TOC_Command use
-     (PARAM_CMD_GET_ITEM => 0,
-      PARAM_CMD_GET_INFO => 1);
+     (GET_ITEM => 0,
+      GET_INFO => 1);
    for Parameter_TOC_Command'Size use 8;
 
    --  Type representing all the available parameter control commands.
    type Parameter_Control_Command is
-     (PARAM_CMD_RESET,
-      PARAM_CMD_GET_NEXT,
-      PARAM_CMD_GET_CRC);
+     (RESET,
+      GET_NEXT,
+      GET_CRC);
    for Parameter_Control_Command use
-     (PARAM_CMD_RESET    => 0,
-      PARAM_CMD_GET_NEXT => 1,
-      PARAM_CMD_GET_CRC  => 2);
+     (RESET    => 0,
+      GET_NEXT => 1,
+      GET_CRC  => 2);
    for Parameter_Control_Command'Size use 8;
 
    --  Error code constants
@@ -81,31 +80,30 @@ package body Parameter is
    --  EEXIST : constant := 17;
 
    --  Maximum number of groups we can log.
-   MAX_PARAM_NUMBER_OF_GROUPS          : constant := 8;
+   MAX_NUMBER_OF_GROUPS          : constant := 8;
    --  Maximum number of variables we can log inside a group.
-   MAX_PARAM_NUMBER_OF_VARIABLES       : constant := 4;
+   MAX_NUMBER_OF_VARIABLES       : constant := 4;
 
    --  Types, subprograms previously in private part of spec
 
-   subtype Parameter_Name is String (1 .. MAX_PARAM_VARIABLE_NAME_LENGTH);
+   subtype Parameter_Name is String (1 .. MAX_VARIABLE_NAME_LENGTH);
 
    --  Type representing a parameter variable.
    type Parameter_Variable is record
       Group_ID       : Natural;
       Name           : Parameter_Name;
       Name_Length    : Natural;
-      --  Storage_Type   : Parameter_Variable_Type;
       Parameter_Type : Parameter_Variable_Type;
       Variable       : System.Address := System.Null_Address;
    end record;
 
    type Parameter_Group_Variable_Array is
-     array (0 .. MAX_PARAM_NUMBER_OF_VARIABLES - 1) of
+     array (0 .. MAX_NUMBER_OF_VARIABLES - 1) of
      aliased Parameter_Variable;
 
    type Parameter_Variable_Array is
      array (0 ..
-              MAX_PARAM_NUMBER_OF_VARIABLES * MAX_PARAM_NUMBER_OF_GROUPS - 1)
+              MAX_NUMBER_OF_VARIABLES * MAX_NUMBER_OF_GROUPS - 1)
      of access Parameter_Variable;
 
    --  Type representing a log group.
@@ -118,13 +116,13 @@ package body Parameter is
    end record;
 
    type Parameter_Group_Array is
-     array (0 .. MAX_PARAM_NUMBER_OF_GROUPS - 1) of Parameter_Group;
+     array (0 .. MAX_NUMBER_OF_GROUPS - 1) of Parameter_Group;
 
    type Parameter_Data_Base is record
       Parameter_Groups          : Parameter_Group_Array;
       Parameter_Variables       : Parameter_Variable_Array := (others => null);
       Parameter_Groups_Index    : Natural := 0;
-      Parameter_Variables_Count : T_Uint8 := 0;
+      Parameter_Variables_Count : Types.T_Uint8 := 0;
    end record;
 
    --  Global variables and constants
@@ -138,10 +136,10 @@ package body Parameter is
 
    --  Handler called when a CRTP packet is received in the param
    --  port.
-   procedure Parameter_CRTP_Handler (Packet : CRTP_Packet);
+   procedure CRTP_Handler (Packet : CRTP.Packet);
 
    --  Process a command related to TOC demands from the python client.
-   procedure Parameter_TOC_Process (Packet : CRTP_Packet);
+   procedure TOC_Process (Packet : CRTP.Packet);
 
    --  Convert an unbounded string to a Log_Name, with a fixed size.
    function String_To_Parameter_Name (Name : String) return Parameter_Name;
@@ -151,37 +149,37 @@ package body Parameter is
    procedure Append_Raw_Data_Variable_Name_To_Packet
      (Variable       : Parameter_Variable;
       Group          : Parameter_Group;
-      Packet_Handler : in out CRTP_Packet_Handler;
+      Packet_Handler : in out CRTP.Packet_Handler;
       Has_Succeed    : out Boolean);
 
    --  Read a parameter.
-   procedure Parameter_Read_Process (Packet : CRTP_Packet);
+   procedure Read_Process (Packet : CRTP.Packet);
 
    --  Public procedures and functions
 
-   --------------------
-   -- Parameter_Init --
-   --------------------
+   ----------
+   -- Init --
+   ----------
 
-   procedure Parameter_Init is
+   procedure Init is
    begin
       if Is_Init then
          return;
       end if;
 
-      CRTP_Register_Callback (CRTP_PORT_PARAM, Parameter_CRTP_Handler'Access);
+      CRTP.Register_Callback (CRTP.PORT_PARAM, CRTP_Handler'Access);
 
       Is_Init := True;
-   end Parameter_Init;
+   end Init;
 
-   --------------------
-   -- Parameter_Test --
-   --------------------
+   ----------
+   -- Test --
+   ----------
 
-   function Parameter_Test return Boolean is
+   function Test return Boolean is
    begin
       return Is_Init;
-   end Parameter_Test;
+   end Test;
 
    ----------------------------
    -- Create_Parameter_Group --
@@ -196,7 +194,7 @@ package body Parameter is
         := Parameter_Data.Parameter_Groups_Index;
    begin
       if Parameter_Groups_Index > Parameter_Data.Parameter_Groups'Last or
-        Name'Length > MAX_PARAM_VARIABLE_NAME_LENGTH
+        Name'Length > MAX_VARIABLE_NAME_LENGTH
       then
          Has_Succeed := False;
          return;
@@ -225,6 +223,7 @@ package body Parameter is
    is
       Group               : Parameter_Group;
       Parameter_Variables_Index : Natural;
+      use type Types.T_Uint8;
    begin
       Has_Succeed := False;
 
@@ -237,7 +236,7 @@ package body Parameter is
       Parameter_Variables_Index := Group.Parameter_Variables_Index;
 
       if Parameter_Variables_Index > Group.Parameter_Variables'Last or
-        Name'Length > MAX_PARAM_VARIABLE_NAME_LENGTH
+        Name'Length > MAX_VARIABLE_NAME_LENGTH
       then
          return;
       end if;
@@ -269,93 +268,95 @@ package body Parameter is
 
    --  Private procedures and functions
 
-   ----------------------------
-   -- Parameter_CRTP_Handler --
-   ----------------------------
+   ------------------
+   -- CRTP_Handler --
+   ------------------
 
-   procedure Parameter_CRTP_Handler (Packet : CRTP_Packet)
+   procedure CRTP_Handler (Packet : CRTP.Packet)
    is
       ---------------------------------------
       -- CRTP_Channel_To_Parameter_Channel --
       ---------------------------------------
 
       function CRTP_Channel_To_Parameter_Channel is
-        new Ada.Unchecked_Conversion (CRTP_Channel, Parameter_Channel);
+        new Ada.Unchecked_Conversion (CRTP.Channel_T, Parameter_Channel);
 
       Channel : Parameter_Channel;
    begin
       Channel := CRTP_Channel_To_Parameter_Channel (Packet.Channel);
 
       case Channel is
-         when PARAM_TOC_CH =>
-            Parameter_TOC_Process (Packet);
-         when PARAM_READ_CH =>
-            Parameter_Read_Process (Packet);
-         when PARAM_WRITE_CH | PARAM_MISC_CH =>
+         when TOC_CH =>
+            TOC_Process (Packet);
+         when READ_CH =>
+            Read_Process (Packet);
+         when WRITE_CH | MISC_CH =>
             null;
       end case;
-   end Parameter_CRTP_Handler;
+   end CRTP_Handler;
 
-   ---------------------------
-   -- Parameter_TOC_Process --
-   ---------------------------
+   -----------------
+   -- TOC_Process --
+   -----------------
 
-   procedure Parameter_TOC_Process (Packet : CRTP_Packet)
+   procedure TOC_Process (Packet : CRTP.Packet)
    is
       function T_Uint8_To_Parameter_TOC_Command is new Ada.Unchecked_Conversion
-        (T_Uint8, Parameter_TOC_Command);
+        (Types.T_Uint8, Parameter_TOC_Command);
 
-      procedure CRTP_Append_T_Uint8_Data is new CRTP_Append_Data
-        (T_Uint8);
+      procedure CRTP_Append_T_Uint8_Data is new CRTP.Append_Data
+        (Types.T_Uint8);
 
       procedure CRTP_Append_Parameter_Variable_Type_Data
-      is new CRTP_Append_Data
+      is new CRTP.Append_Data
         (Parameter_Variable_Type);
 
-      procedure CRTP_Append_T_Uint32_Data is new CRTP_Append_Data
-        (T_Uint32);
+      procedure CRTP_Append_T_Uint32_Data is new CRTP.Append_Data
+        (Types.T_Uint32);
 
-      function Parameter_Database_CRC32 return T_Uint32;
-      function Parameter_Database_CRC32 return T_Uint32 is
+      function Database_CRC32 return Types.T_Uint32;
+      function Database_CRC32 return Types.T_Uint32 is
          --  Note, this doesn't take account of uninitialized
          --  components of Parameter_Data, but since the only use (in
          --  cfclient, anyway) is to determine whether to load new
          --  data this will just add a minor startup load.
-         function Parameter_TOC_CRC
+         function TOC_CRC
          is new CRC.Make (Data_Kind => Parameter_Data_Base);
       begin
-         return T_Uint32 (Parameter_TOC_CRC (Parameter_Data));
-      end Parameter_Database_CRC32;
+         return Types.T_Uint32 (TOC_CRC (Parameter_Data));
+      end Database_CRC32;
 
       Command        : Parameter_TOC_Command;
-      Packet_Handler : CRTP_Packet_Handler;
+      Packet_Handler : CRTP.Packet_Handler;
       Has_Succeed    : Boolean;
       pragma Unreferenced (Has_Succeed);
    begin
       Command := T_Uint8_To_Parameter_TOC_Command (Packet.Data_1 (1));
-      Packet_Handler := CRTP_Create_Packet
-        (CRTP_PORT_PARAM, Parameter_Channel'Enum_Rep (PARAM_TOC_CH));
+      Packet_Handler := CRTP.Create_Packet
+        (CRTP.PORT_PARAM, Parameter_Channel'Enum_Rep (TOC_CH));
       CRTP_Append_T_Uint8_Data
         (Packet_Handler,
          Parameter_TOC_Command'Enum_Rep (Command),
          Has_Succeed);
 
       case Command is
-         when PARAM_CMD_GET_INFO =>
+         when GET_INFO =>
             CRTP_Append_T_Uint8_Data
               (Packet_Handler,
                Parameter_Data.Parameter_Variables_Count,
                Has_Succeed);
             CRTP_Append_T_Uint32_Data
               (Packet_Handler,
-               Parameter_Database_CRC32,
+               Database_CRC32,
                Has_Succeed);
 
-         when PARAM_CMD_GET_ITEM =>
+         when GET_ITEM =>
             declare
-               Var_ID              : constant T_Uint8 := Packet.Data_1 (2);
+               Var_ID              : constant Types.T_Uint8
+                 := Packet.Data_1 (2);
                Parameter_Var       : Parameter_Variable;
                Parameter_Var_Group : Parameter_Group;
+               use type Types.T_Uint8;
             begin
                if Var_ID < Parameter_Data.Parameter_Variables_Count then
                   CRTP_Append_T_Uint8_Data
@@ -380,10 +381,10 @@ package body Parameter is
                end if;
             end;
       end case;
-      CRTP_Send_Packet
-        (CRTP_Get_Packet_From_Handler (Packet_Handler),
+      CRTP.Send_Packet
+        (CRTP.Get_Packet_From_Handler (Packet_Handler),
          Has_Succeed);
-   end Parameter_TOC_Process;
+   end TOC_Process;
 
    ------------------------------
    -- String_To_Parameter_Name --
@@ -405,13 +406,13 @@ package body Parameter is
    procedure Append_Raw_Data_Variable_Name_To_Packet
      (Variable       : Parameter_Variable;
       Group          : Parameter_Group;
-      Packet_Handler : in out CRTP_Packet_Handler;
-      Has_Succeed     : out Boolean)
+      Packet_Handler : in out CRTP.Packet_Handler;
+      Has_Succeed    : out Boolean)
    is
       subtype Parameter_Complete_Name is
         String (1 .. Variable.Name_Length + Group.Name_Length + 2); -- nulls
       subtype Parameter_Complete_Name_Raw is
-        T_Uint8_Array (Parameter_Complete_Name'Range);
+        Types.T_Uint8_Array (Parameter_Complete_Name'Range);
 
       ------------------------------------------------------------
       -- Parameter_Complete_Name_To_Parameter_Complete_Name_Raw --
@@ -426,7 +427,7 @@ package body Parameter is
       --------------------------------------------------
 
       procedure CRTP_Append_Parameter_Complete_Name_Raw_Data is new
-        CRTP_Append_Data (Parameter_Complete_Name_Raw);
+        CRTP.Append_Data (Parameter_Complete_Name_Raw);
 
       Complete_Name : constant Parameter_Complete_Name
         := Group.Name (1 .. Group.Name_Length) & ASCII.NUL
@@ -441,25 +442,26 @@ package body Parameter is
          Has_Succeed);
    end Append_Raw_Data_Variable_Name_To_Packet;
 
-   ----------------------------
-   -- Parameter_Read_Process --
-   ----------------------------
+   ------------------
+   -- Read_Process --
+   ------------------
 
-   procedure Parameter_Read_Process (Packet : CRTP_Packet) is
-      procedure CRTP_Append_T_Uint8_Data is new CRTP_Append_Data
-        (T_Uint8);
+   procedure Read_Process (Packet : CRTP.Packet) is
+      procedure CRTP_Append_T_Uint8_Data is new CRTP.Append_Data
+        (Types.T_Uint8);
 
-      ID : constant T_Uint8 := Packet.Data_1 (1);
-      Packet_Handler : CRTP_Packet_Handler;
-      Succeeded : Boolean with Unreferenced;
+      ID             : constant Types.T_Uint8 := Packet.Data_1 (1);
+      Packet_Handler : CRTP.Packet_Handler;
+      Succeeded      : Boolean with Unreferenced;
+      use type Types.T_Uint8;
    begin
-      Packet_Handler := CRTP_Create_Packet
-        (CRTP_PORT_PARAM, Parameter_Channel'Enum_Rep (PARAM_READ_CH));
+      Packet_Handler := CRTP.Create_Packet
+        (CRTP.PORT_PARAM, Parameter_Channel'Enum_Rep (READ_CH));
       if ID >= Parameter_Data.Parameter_Variables_Count then
          --  Invalid
          CRTP_Append_T_Uint8_Data
            (Packet_Handler,
-            T_Uint8'Last,
+            Types.T_Uint8'Last,
             Succeeded);
          CRTP_Append_T_Uint8_Data
            (Packet_Handler,
@@ -481,43 +483,43 @@ package body Parameter is
             case V.Parameter_Type.Size is
                when One_Byte =>
                   declare
-                     procedure Append_Data is new CRTP_Append_Data
-                       (T_Uint8);
-                     Variable : T_Uint8 with Address => V.Variable;
+                     procedure Append_Data is new CRTP.Append_Data
+                       (Types.T_Uint8);
+                     Variable : Types.T_Uint8 with Address => V.Variable;
                   begin
                      Append_Data (Packet_Handler, Variable, Succeeded);
                   end;
                when Two_Bytes =>
                   declare
-                     procedure Append_Data is new CRTP_Append_Data
-                       (T_Uint16);
-                     Variable : T_Uint16 with Address => V.Variable;
+                     procedure Append_Data is new CRTP.Append_Data
+                       (Types.T_Uint16);
+                     Variable : Types.T_Uint16 with Address => V.Variable;
                   begin
                      Append_Data (Packet_Handler, Variable, Succeeded);
                   end;
                when Four_Bytes =>
                   declare
-                     procedure Append_Data is new CRTP_Append_Data
-                       (T_Uint32);
-                     Variable : T_Uint32 with Address => V.Variable;
+                     procedure Append_Data is new CRTP.Append_Data
+                       (Types.T_Uint32);
+                     Variable : Types.T_Uint32 with Address => V.Variable;
                   begin
                      Append_Data (Packet_Handler, Variable, Succeeded);
                   end;
                when Eight_Bytes =>
                   declare
-                     procedure Append_Data is new CRTP_Append_Data
-                       (T_Uint64);
-                     Variable : T_Uint64 with Address => V.Variable;
+                     procedure Append_Data is new CRTP.Append_Data
+                       (Types.T_Uint64);
+                     Variable : Types.T_Uint64 with Address => V.Variable;
                   begin
                      Append_Data (Packet_Handler, Variable, Succeeded);
                   end;
             end case;
          end;
       end if;
-      CRTP_Send_Packet
-        (CRTP_Get_Packet_From_Handler (Packet_Handler),
+      CRTP.Send_Packet
+        (CRTP.Get_Packet_From_Handler (Packet_Handler),
          Succeeded);
       null;
-   end Parameter_Read_Process;
+   end Read_Process;
 
 end Parameter;

@@ -29,7 +29,7 @@
 
 with System;
 
-with MPU9250;       use MPU9250;
+with MPU9250;       use MPU9250;  -- Part of Ada Drivers Library
 
 package Crazyflie_Config is
 

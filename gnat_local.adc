@@ -1,1 +1,6 @@
+--  cortex-gnat-rts's stm32f4 allows recursion, because the
+--  filesystem-related components of Ada Drivers Library use it.
+--
+--  However, we don't want that in Crazyflie-specific code.
+
 pragma Restrictions (No_Recursion);
