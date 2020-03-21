@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -92,7 +93,7 @@ package body Console is
          Append_Character_Data
            (Message_To_Print, C, Free_Bytes_In_Packet);
 
-         if not Free_Bytes_In_Packet then
+         if C = ASCII.LF or not Free_Bytes_In_Packet then
             Send_Message (Has_Succeed);
          end if;
       end Put_Character;

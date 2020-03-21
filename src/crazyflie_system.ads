@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -29,7 +30,7 @@
 
 --  Package initializing all the modules of the Crazyflie
 
-private with System;
+private with Interfaces.C.Strings;
 
 package Crazyflie_System is
 
@@ -54,8 +55,12 @@ private
    --  Procedures and function
 
    --  Global exception handler
-   procedure Last_Chance_Handler (Message : System.Address; Line : Integer);
-   pragma Export (C, Last_Chance_Handler, "__gnat_last_chance_handler");
-   pragma No_Return (Last_Chance_Handler);
+   procedure Last_Chance_Handler (Message : Interfaces.C.Strings.chars_ptr;
+                                  Line : Integer)
+   with
+     Export,
+     Convention => C,
+     External_Name => "__gnat_last_chance_handler",
+     No_Return;
 
 end Crazyflie_System;

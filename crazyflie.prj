@@ -4,9 +4,9 @@
 # projects can do this, but they severely limit the use of package
 # Builder in projects called up via the aggregate).
 
-gpr_file=crazyflie.gpr
+gpr_file=./crazyflie.gpr
+casing=$HOME/.emacs_case_exceptions
 target=arm-eabi-
-runtime=$HOME/cortex-gnat-rts/local/stm32f4
 $RUNTIME=$HOME/cortex-gnat-rts/local/stm32f4
 $PLATFORM_BUILD=Production
 $ADL_BUILD=Production

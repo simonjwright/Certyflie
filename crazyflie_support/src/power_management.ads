@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -39,8 +40,8 @@ is
 
    --  Types
 
-   --  Type reperesenting the current power state.
-   type Power_State is (Battery, Charging, Charged, Low_Power, Shut_Down);
+   --  Type representing the current power state.
+   type Power_State is (On_Battery, Charging, Charged, Low_Power, Shut_Down);
 
    --  Type representing the current charge state.
    type Power_Charge_State is (Charge_100_MA, Charge_500_MA, Charge_MAX);
@@ -140,6 +141,9 @@ private
                         4.10  --   90%
                        );
 
+   subtype Charge_State is Natural range 0 .. 9;
+   --  0 is completely discharged and 9 is 90% (or more) charged.
+
    --  Procedures and functions
 
    --  Set the battery voltage and its min and max values.
@@ -148,7 +152,7 @@ private
    --  Return a number From 0 To 9 Where 0 is completely Discharged
    --  and 9 is 90% charged.
    function Get_Charge_From_Voltage
-     (Voltage : Float) return Integer;
+     (Voltage : Float) return Charge_State;
 
    --  Get the power state for the given power information received from
    --  the nrf51.

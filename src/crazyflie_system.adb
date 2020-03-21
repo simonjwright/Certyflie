@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2017, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -28,6 +29,11 @@
 ------------------------------------------------------------------------------
 
 with Ada.Real_Time;
+pragma Warnings (Off, "is an internal GNAT unit");
+with System.FreeRTOS.Tasks;
+pragma Warnings (On, "is an internal GNAT unit");
+with Hardfault_Handling;
+pragma Unreferenced (Hardfault_Handling);
 
 with Communication;
 with Commander;
@@ -146,15 +152,19 @@ package body Crazyflie_System is
    -- Last_Chance_Handler --
    -------------------------
 
-   procedure Last_Chance_Handler (Message : System.Address; Line : Integer)
+   procedure Last_Chance_Handler (Message : Interfaces.C.Strings.chars_ptr;
+                                  Line : Integer)
    is
       pragma Unreferenced (Message, Line);
-      use Ada.Real_Time;
    begin
+      --  As like as not, we've got some interrupt-related error. Of
+      --  course, that may prevent us ever getting here.
+      System.FreeRTOS.Tasks.Disable_Interrupts;
+
       Motors.Reset;
       LEDS.Reset_All;
 
-      --  No-return procedure...
+      --  It's a no-return procedure...
       loop
          LEDS.Toggle (LEDS.Red_L);
          delay until Clock + Milliseconds (1_000);

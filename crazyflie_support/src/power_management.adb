@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -46,7 +47,7 @@ is
 
    procedure Init is
    begin
-      Current_Power_State := Battery;
+      Current_Power_State := On_Battery;
 
       declare
          Dummy : Boolean;
@@ -93,7 +94,7 @@ is
    -----------------------------
 
    function Get_Charge_From_Voltage
-     (Voltage : Float) return Integer
+     (Voltage : Float) return Charge_State
    is
    begin
       for Charge in Bat_671723HS25C'Range loop
@@ -129,7 +130,7 @@ is
       State            : Power_State;
       Is_Charging      : Boolean;
       Is_Pgood         : Boolean;
-      Charge_Rate      : Integer;
+      Charge_State     : Integer;
       Battery_Low_Time : Ada.Real_Time.Time_Span;
 
       use type Ada.Real_Time.Time_Span;
@@ -137,11 +138,11 @@ is
       Is_Charging      := Power_Info.Charging;
       Is_Pgood         := Power_Info.Pgood;
       Battery_Low_Time := Ada.Real_Time.Clock - Battery_Low_Time_Stamp;
-      Charge_Rate      :=
+      Charge_State      :=
         Get_Charge_From_Voltage (Power_Info.V_Bat_1);
-      LEDS.Set_Battery_Level (Charge_Rate);
+      LEDS.Set_Battery_Level (Charge_State);
 
-      if Charge_Rate = 9 and then Is_Charging then
+      if Charge_State = 9 and then Is_Charging then
          State := Charged;
 
       elsif Is_Charging then
@@ -153,7 +154,7 @@ is
          State := Low_Power;
 
       else
-         State := Battery;
+         State := On_Battery;
       end if;
 
       return State;
@@ -168,7 +169,7 @@ is
    begin
       State := Get_State (Current_Power_Info);
 
-      return State = Battery;
+      return State = On_Battery;
    end Is_Discharging;
 
    --------------------
@@ -184,7 +185,7 @@ is
             LEDS.Set_Battery_State (LEDS.Charged);
          when Low_Power =>
             LEDS.Set_Battery_State (LEDS.Low_Power);
-         when Battery =>
+         when On_Battery =>
             LEDS.Set_Battery_State (LEDS.On_Battery);
          when others =>
             null;
@@ -226,7 +227,7 @@ is
             Current_Power_State := New_Power_State;
          end if;
 
-         Next_Period := Next_Period + Ada.Real_Time.Milliseconds (500);
+         Next_Period := Now + Ada.Real_Time.Milliseconds (500);
       end loop;
    end Task_Type;
 

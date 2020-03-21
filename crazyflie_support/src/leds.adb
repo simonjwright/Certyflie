@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2017, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -167,11 +168,13 @@ package body LEDS is
    -- Set_Battery_Level --
    -----------------------
 
-   procedure Set_Battery_Level (Level : Natural)
+   procedure Set_Battery_Level (Level : Battery_Level)
    is
    begin
+      --  A Blink_Period of 0 means "permanently on", so we want to
+      --  avoid setting that for the lowest level.
       Battery_Animations (On_Battery).Blink_Period :=
-        0.5 * Duration (Level);
+        0.5 * Duration (Natural'Max (1, Level));
    end Set_Battery_Level;
 
    ----------------------
@@ -203,6 +206,8 @@ package body LEDS is
          Next  : Ada.Real_Time.Time;
          use type Ada.Real_Time.Time;
       begin
+         pragma Assert (Anim.Blink_Period > 0.0, "unblinking LED");
+
          Toggle (Anim.LED);
 
          --  Special case: the LED remains off not as long as it is on.

@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2017, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -48,6 +49,9 @@ package LEDS is
       Charging,
       Charged);
 
+   subtype Battery_Level is Integer range 0 .. 9;
+   --  0 => discharged, 9 => full
+
    type System_State is
      (Initial_State,
       Self_Test,
@@ -79,7 +83,7 @@ package LEDS is
 
    procedure Set_System_State (State : Valid_System_State);
    procedure Set_Battery_State (State : Valid_Battery_State);
-   procedure Set_Battery_Level (Level : Natural);
+   procedure Set_Battery_Level (Level : Battery_Level);
    procedure Set_Link_State (State : Valid_Link_State);
 
    function Get_System_State return System_State;
