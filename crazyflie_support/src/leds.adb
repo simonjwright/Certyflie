@@ -72,10 +72,10 @@ package body LEDS is
 
    procedure Cancel_Animation (Anim : in out Animation)
    is
-      Cancelled : Boolean with Unreferenced;
+      Dummy : Boolean;
    begin
-      if Anim.Blink_Period > 0.0 then
-         Anim.Cancel_Handler (Cancelled);
+      if Anim.On_Period > 0.0 then
+         Anim.Cancel_Handler (Cancelled => Dummy);
       end if;
 
       Set (Anim.LED, False);
@@ -91,10 +91,10 @@ package body LEDS is
    begin
       Set (Anim.LED, True);
 
-      if Anim.Blink_Period > 0.0 then
+      if Anim.On_Period > 0.0 then
          Anim.Set_Handler
            (Ada.Real_Time.Clock
-              + Ada.Real_Time.To_Time_Span (Anim.Blink_Period),
+              + Ada.Real_Time.To_Time_Span (Anim.On_Period),
             Status_Event_Handler.Toggle_Status'Access);
       end if;
    end Activate_Animation;
@@ -171,10 +171,15 @@ package body LEDS is
    procedure Set_Battery_Level (Level : Battery_Level)
    is
    begin
-      --  A Blink_Period of 0 means "permanently on", so we want to
+      --  A On_Period of 0 means "permanently on", so we want to
       --  avoid setting that for the lowest level.
-      Battery_Animations (On_Battery).Blink_Period :=
-        0.5 * Duration (Natural'Max (1, Level));
+      Battery_Animations (On_Battery).On_Period :=
+        (case Level is
+            when 0 => 0.05,
+            when 1 => 0.1,
+            when 2 => 0.25,
+            when 3 => 0.5,
+            when others => 0.5 * Duration (Level));
    end Set_Battery_Level;
 
    ----------------------
@@ -202,23 +207,21 @@ package body LEDS is
          --  but the formal gives a view of type Timing_Event, so we convert
          --  to the subclass to change the view. (The inner conversion to
          --  the classwide base type is required.) Changing the view allows
-         --  reference to the LED and Blink_Period components within Event.
+         --  reference to the LED and On_Period components within Event.
          Next  : Ada.Real_Time.Time;
          use type Ada.Real_Time.Time;
       begin
-         pragma Assert (Anim.Blink_Period > 0.0, "unblinking LED");
-
          Toggle (Anim.LED);
 
-         --  Special case: the LED remains off not as long as it is on.
-         if Anim.Blink_Period > 0.5
-           and then not Is_Set (Anim.LED)
-         then
-            Next := Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (500);
-
-         else
+         if Is_Set (Anim.LED) then
+            --  Stay on for the on_period.
             Next := Ada.Real_Time.Clock
-              + Ada.Real_Time.To_Time_Span (Anim.Blink_Period);
+              + Ada.Real_Time.To_Time_Span (Anim.On_Period);
+         else
+            --  stay off for the lower of 0.5s and the on_period.
+            Next := Ada.Real_Time.Clock
+              + Ada.Real_Time.To_Time_Span
+                (Duration'Min (Anim.On_Period, 0.5));
          end if;
 
          --  Set this procedure as the handler for the next occurrence for

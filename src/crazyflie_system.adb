@@ -156,6 +156,7 @@ package body Crazyflie_System is
                                   Line : Integer)
    is
       pragma Unreferenced (Message, Line);
+      use Ada.Real_Time;
    begin
       --  As like as not, we've got some interrupt-related error. Of
       --  course, that may prevent us ever getting here.

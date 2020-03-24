@@ -111,11 +111,12 @@ private
    function Is_Set (LED : Crazyflie_LED) return Boolean
      renames STM32.Board.Is_On;
 
-   --  An LED animation targets a specific LED and switches it on/off according
-   --  to its blink period.
+   --  An LED animation targets a specific LED and switches it on/off
+   --  according to its period (it's on for the indicated period, off
+   --  for the minimum of 0.5s and the period)..
    type Animation is new ARTTE.Timing_Event with record
-      LED          : Crazyflie_LED;
-      Blink_Period : Duration;
+      LED       : Crazyflie_LED;
+      On_Period : Duration;
    end record;
 
    --  The individual LED animations corresponding to the various individual
@@ -152,7 +153,8 @@ private
       --  Timing_Event_Handler procedure pointer, but the object passed will be
       --  of type Animation, derived from Timing_Event and thus compatible
       --  as an actual parameter.
-      procedure Toggle_Status (Event : in out ARTTE.Timing_Event);
+      procedure Toggle_Status (Event : in out ARTTE.Timing_Event)
+      with Pre => ARTTE.Timing_Event'Class (Event) in Animation'Class;
 
    end Status_Event_Handler;
 
