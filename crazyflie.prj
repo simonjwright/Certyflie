@@ -6,6 +6,7 @@
 
 gpr_file=./crazyflie.gpr
 casing=$HOME/.emacs_case_exceptions
+casing=emacs_case_exceptions
 target=arm-eabi-
 $RUNTIME=$HOME/cortex-gnat-rts/local/stm32f4
 $PLATFORM_BUILD=Production
