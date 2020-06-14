@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -27,40 +28,30 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with CRTP;
-
-private with Ada.Synchronous_Task_Control;
+with System;
 
 package Console is
-
-   --  Procedures and functions
 
    --  Initialize the console module.
    procedure Init;
 
    --  Flush the console buffer.
-   procedure Flush (Has_Succeed : out Boolean);
+   procedure Flush;
 
    --  Test if the console module is initialized.
    function  Test return Boolean;
 
-   --  Put a string in the console buffer, and send it if a newline
-   --  character is found.
-   procedure Put_Line
-     (Message     : String;
-      Has_Succeed : out Boolean);
+   --  Send the mesage to the console.
+   procedure Put (Message : String);
 
-private
+   --  Send the mesage to the console, appending a newline.
+   procedure Put_Line (Message : String);
 
-   --  Global variables
+   --  Used by device test procedures
+   procedure Put_Line (Message : String; Dummy : out Boolean);
 
-   Is_Init          : Boolean := False;
-   Console_Access   : Ada.Synchronous_Task_Control.Suspension_Object;
-   Message_To_Print : CRTP.Packet_Handler;
-
-   --  Procedures and functions
-
-   --  Send the console buffer via CRTP.
-   procedure Send_Message (Has_Succeed : out Boolean);
+   task type Task_Type (Prio : System.Priority) is
+      pragma Priority (Prio);
+   end Task_Type;
 
 end Console;

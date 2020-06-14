@@ -28,7 +28,23 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
+with CRTP;
+
 package body Console is
+
+   Is_Init : Boolean := False;
+
+   --  PO to buffer message text
+   protected Message_Buffer is
+      entry Get (Str : out String; Last : out Positive);
+      procedure Put (Str : String);
+      procedure Put (C : Character);
+      procedure Flush;
+   private
+      Buffer : String (1 .. 256);
+      Last   : Natural := 0;
+      Not_Empty  : Boolean := False; -- Ravenscar requires simple barrier
+   end Message_Buffer;
 
    ----------
    -- Init --
@@ -39,10 +55,6 @@ package body Console is
       if Is_Init then
          return;
       end if;
-
-      Ada.Synchronous_Task_Control.Set_True (Console_Access);
-      Message_To_Print := CRTP.Create_Packet (CRTP.PORT_CONSOLE, 0);
-
       Is_Init := True;
    end Init;
 
@@ -51,59 +63,128 @@ package body Console is
       return Is_Init;
    end Test;
 
-   ------------------
-   -- Send_Message --
-   ------------------
-
-   procedure Send_Message (Has_Succeed : out Boolean) is
-   begin
-      CRTP.Send_Packet
-        (CRTP.Get_Packet_From_Handler (Message_To_Print), Has_Succeed);
-
-      --  Reset the CRTP packet data contained in the handler
-      CRTP.Reset_Handler (Message_To_Print);
-   end Send_Message;
-
    -----------
    -- Flush --
    -----------
 
-   procedure Flush (Has_Succeed : out Boolean) is
+   procedure Flush is
    begin
-      Ada.Synchronous_Task_Control.Suspend_Until_True (Console_Access);
-      Send_Message (Has_Succeed);
-      Ada.Synchronous_Task_Control.Set_True (Console_Access);
+      Message_Buffer.Flush;
    end Flush;
+
+   ---------
+   -- Put --
+   ---------
+
+   procedure Put (Message : String)
+   is
+   begin
+      Message_Buffer.Put (Message);
+   end Put;
 
    --------------
    -- Put_Line --
    --------------
 
-   procedure Put_Line
-     (Message     : String;
-      Has_Succeed : out Boolean)
+   procedure Put_Line (Message : String)
    is
-      Free_Bytes_In_Packet : Boolean := True;
-
-      procedure Append_Character_Data is new CRTP.Append_Data (Character);
-
-      procedure Put_Character (C : Character);
-      procedure Put_Character (C : Character) is
-      begin
-         Append_Character_Data
-           (Message_To_Print, C, Free_Bytes_In_Packet);
-
-         if C = ASCII.LF or not Free_Bytes_In_Packet then
-            Send_Message (Has_Succeed);
-         end if;
-      end Put_Character;
    begin
-      for C of Message loop
-         Put_Character (C);
-      end loop;
-      Put_Character (ASCII.LF);
-
-      Send_Message (Has_Succeed);
+      Message_Buffer.Put (Message & ASCII.LF);
    end Put_Line;
+
+   procedure Put_Line (Message : String; Dummy : out Boolean)
+   is
+   begin
+      Dummy := True;
+      Message_Buffer.Put (Message & ASCII.LF);
+   end Put_Line;
+
+   --------------------
+   -- Message_Buffer --
+   --------------------
+
+   protected body Message_Buffer is
+      entry Get (Str : out String; Last : out Positive) when Not_Empty is
+         pragma Assert (Str'First = 1, "non-standard string");
+         Remaining_Characters : constant Natural
+           := Natural'Max (Message_Buffer.Last - Str'Last, 0);
+      begin
+         Last := Message_Buffer.Last - Remaining_Characters;
+         Str (1 .. Last) := Buffer (1 .. Last);
+         Buffer (1 .. Remaining_Characters) :=
+           Buffer (Message_Buffer.Last + 1 - Remaining_Characters
+                     .. Message_Buffer.Last);
+         Message_Buffer.Last := Remaining_Characters;
+         Not_Empty := Message_Buffer.Last > 0;
+      end Get;
+
+      procedure Put (Str : String) is
+      begin
+         Buffer (Last + 1 .. Last + Str'Length) := Str;  -- fingers crossed
+         Last := Last + Str'Length;
+         Not_Empty := True;
+      end Put;
+
+      procedure Put (C : Character) is
+      begin
+         Last := Last + 1;
+         Buffer (Last) := C;
+         Not_Empty := True;
+      end Put;
+
+      procedure Flush is
+      begin
+         Put (ASCII.NUL);
+      end Flush;
+   end Message_Buffer;
+
+   task body Task_Type is
+      procedure Append_Character
+        is new CRTP.Append_Data (Character);
+      procedure Send_Message;
+
+      Message_To_Print : CRTP.Packet_Handler
+        := CRTP.Create_Packet (CRTP.PORT_CONSOLE, 0);
+
+      procedure Send_Message is
+         Succeeded : Boolean;
+      begin
+         CRTP.Send_Packet
+           (CRTP.Get_Packet_From_Handler (Message_To_Print), Succeeded);
+         if not Succeeded then
+            raise Program_Error with "message not sent";
+         end if;
+         CRTP.Reset_Handler (Message_To_Print);
+      end Send_Message;
+
+      Buff : String (1 .. 128);
+      Last : Positive;
+   begin
+      loop
+         Message_Buffer.Get (Buff, Last);
+         for C in 1 .. Last loop
+            declare
+               Ch : constant Character := Buff (C);
+               Appended : Boolean;
+            begin
+               if Ch = ASCII.NUL -- which signals to flush
+               then
+                  Send_Message;
+               else
+                  Append_Character (Message_To_Print, Ch, Appended);
+                  if not Appended
+                  then
+                     Send_Message;
+                     Append_Character (Message_To_Print, Ch, Appended);
+                     pragma Assert (Appended);
+                  end if;
+                  if Ch = ASCII.LF then
+                     Send_Message;
+                  end if;
+               end if;
+            end;
+         end loop;
+      end loop;
+   end Task_Type;
 
 end Console;
