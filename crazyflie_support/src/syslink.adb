@@ -27,6 +27,7 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
+with One_Wire;
 with Power_Management;
 with Radiolink;
 
@@ -100,29 +101,19 @@ package body Syslink is
       Group_Type_Raw : Types.T_Uint8;
       Group_Type     : Packet_Group_Type;
 
-      ------------------------------------------
-      -- T_Uint8_To_Syslink_Packet_Group_Type --
-      ------------------------------------------
-
-      function T_Uint8_To_Syslink_Packet_Group_Type is
-        new Ada.Unchecked_Conversion (Types.T_Uint8,
-                                      Packet_Group_Type);
-
       use type Types.T_Uint8;
    begin
       Group_Type_Raw := Packet_Type'Enum_Rep (Rx_Sl_Packet.Slp_Type)
         and GROUP_MASK;
-      Group_Type := T_Uint8_To_Syslink_Packet_Group_Type (Group_Type_Raw);
+      Group_Type := Packet_Group_Type'Enum_Val (Group_Type_Raw);
 
       case Group_Type is
          when RADIO_GROUP =>
             Radiolink.Syslink_Dispatch (Rx_Sl_Packet);
-            --  TODO: Dispatch the syslink packets to the other modules
-            --  when they will be implemented
          when PM_GROUP =>
             Power_Management.Syslink_Update (Rx_Sl_Packet);
-         when others =>
-            null;
+         when OW_GROUP =>
+            One_Wire.Receive (Rx_Sl_Packet);
       end case;
    end Route_Incoming_Packet;
 
@@ -180,7 +171,6 @@ package body Syslink is
                   Rx_State := WAIT_FOR_CHKSUM_1;
                end if;
             when WAIT_FOR_CHKSUM_1 =>
-
                if Chk_Sum (1) = Rx_Byte then
                   Rx_State := WAIT_FOR_CHKSUM_2;
                else
