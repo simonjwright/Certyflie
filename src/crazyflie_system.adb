@@ -37,6 +37,7 @@ pragma Unreferenced (Hardfault_Handling);
 
 with Communication;
 with Commander;
+with Deck;
 with IMU;
 with LEDS;
 with Log;
@@ -87,6 +88,23 @@ package body Crazyflie_System is
 
       --  Initialize high level modules.
       Commander.Init;
+
+      --  in modules/src/system.c:
+      --  commanderInit();
+
+      --  StateEstimatorType estimator = anyEstimator;
+      --  estimatorKalmanTaskInit();
+
+      Deck.Init;
+
+      --  estimator = deckGetRequiredEstimator();
+      --  stabilizerInit(estimator);
+      --  if (deckGetRequiredLowInterferenceRadioMode()
+      --      && platformConfigPhysicalLayoutAntennasAreClose())
+      --  {
+      --    platformSetLowInterferenceRadioMode();
+      --  }
+
       Stabilizer.Init;
 
       Is_Init := True;
@@ -107,6 +125,8 @@ package body Crazyflie_System is
       Self_Test_Passed := Self_Test_Passed and Memory.Test;
       Self_Test_Passed := Self_Test_Passed and Commander.Test;
       Self_Test_Passed := Self_Test_Passed and Stabilizer.Test;
+      --  pass &= estimatorKalmanTaskTest();
+      Self_Test_Passed := Self_Test_Passed and Deck.Test;
 
       if Self_Test_Passed then
          LEDS.Set_System_State (LEDS.Calibrating);
