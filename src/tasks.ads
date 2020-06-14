@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2017, AdaCore                          --
+--           Copyright (C) 2020, Simon Wright (simon@pushface.org)          --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -28,6 +29,7 @@
 ------------------------------------------------------------------------------
 
 with Config;
+with Console;
 with CRTP;
 with Log;
 with Power_Management;
@@ -38,8 +40,9 @@ package Tasks is
    CRTP_Rx_Task          : CRTP.Rx_Task_Type (Config.CRTP_RXTX_TASK_PRIORITY);
    CRTP_Tx_Task          : CRTP.Tx_Task_Type (Config.CRTP_RXTX_TASK_PRIORITY);
    Syslink_Task          : Syslink.Task_Type (Config.SYSLINK_TASK_PRIORITY);
+   Logger_Task           : Log.Logger (Config.LOG_TASK_PRIORITY);
+   Console_Task          : Console.Task_Type (Config.LOG_TASK_PRIORITY);
    Power_Management_Task :
      Power_Management.Task_Type (Config.PM_TASK_PRIORITY);
-   Logger_Task           : Log.Logger (Config.LOG_TASK_PRIORITY);
 
 end Tasks;
