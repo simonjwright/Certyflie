@@ -1,3 +1,6 @@
 target remote :4242
 load
-b __gnat_last_chance_handler
+break __gnat_last_chance_handler
+monitor semihosting enable
+monitor semihosting ioclient 2
+

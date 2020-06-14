@@ -1,1 +1,11 @@
 LEDS
+*NSS
+*OW
+*PMW3901
+*SCL
+*SDA
+*ToF
+*UInt16
+*UInt32
+*UInt8
+*VL53L0X

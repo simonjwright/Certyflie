@@ -124,18 +124,11 @@ package body Radiolink is
       Sl_Packet : Syslink.Packet;
       Has_Succeed : Boolean;
 
-      ------------------------------
-      -- CRTP_Raw_To_Syslink_Data --
-      ------------------------------
-
-      function CRTP_Raw_To_Syslink_Data is new Ada.Unchecked_Conversion
-        (CRTP.Raw_T, Syslink.Syslink_Data);
-
       use type Types.T_Uint8;
    begin
       Sl_Packet.Length := Packet.Size + 1;
       Sl_Packet.Slp_Type := Syslink.RADIO_RAW;
-      Sl_Packet.Data := CRTP_Raw_To_Syslink_Data (Packet.Raw_Pkt);
+      Sl_Packet.Data (1 .. 31) := Packet.Raw_Pkt;
 
       --  Try to enqueue the Syslink packet
       Tx_Queue.Enqueue_Item (Sl_Packet, Has_Succeed);
@@ -160,7 +153,8 @@ package body Radiolink is
          Rx_CRTP_Packet.Size := Rx_Sl_Packet.Length - 1;
          Rx_CRTP_Packet.Header := Rx_Sl_Packet.Data (1);
          Rx_CRTP_Packet.Data_2 :=
-           CRTP.Data_T (Rx_Sl_Packet.Data (2 .. Rx_Sl_Packet.Data'Length));
+           CRTP.Data_T (Rx_Sl_Packet.Data (2 .. 31));
+         --  should really only copy significant bytes, but ...
 
          --  Enqueue the received packet
          Rx_Queue.Enqueue_Item (Rx_CRTP_Packet, Has_Succeed);
