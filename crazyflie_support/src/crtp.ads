@@ -78,7 +78,7 @@ is
    subtype Data_T is Types.T_Uint8_Array (1 .. MAX_DATA_SIZE);
 
    --  Type used to represenet a raw CRTP Packet (Header + Data).
-   type Raw_T is array (1 .. MAX_DATA_SIZE + 1) of Types.T_Uint8;
+   subtype Raw_T is Types.T_Uint8_Array (1 .. MAX_DATA_SIZE + 1);
 
    --  Type listing the different representations for the union type
    --  CRTP Packet.

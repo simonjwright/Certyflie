@@ -65,7 +65,6 @@ project Crazyflie is
       for Program_Host use "localhost:4242";
       for Communication_Protocol use "remote";
       for Connection_Tool use "st-util";
-
       for Debugger_Command use "arm-eabi-gdb";
       for Gnatlist use "arm-eabi-gnatls";
       for Gnat use "arm-eabi-gnat";
