@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2017, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -62,10 +63,6 @@ package Radiolink is
    --  Receive a packet from Radiolink layer.
    --  Putting the task calling it in sleep mode until a packet is received.
    procedure Receive_Packet_Blocking (Packet : out CRTP.Packet);
-
-   --  Enqueue a packet in the Radiolink RX_Queue and send one packet
-   --  to Syslink if one has been received.
-   procedure Syslink_Dispatch (Rx_Sl_Packet : Syslink.Packet);
 
 private
 

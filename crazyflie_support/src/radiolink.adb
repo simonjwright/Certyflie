@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2017, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -35,6 +36,13 @@ with LEDS;
 
 package body Radiolink is
 
+   -- Local procedures --
+
+   --  If the received syslink packet is RADIO_RAW (not RADIO_RSSI,
+   --  which we don't use?), send to CRTP. If we receive a CRTP
+   --  packet, send it out via Syslink.
+   procedure Syslink_Dispatch (Rx_Sl_Packet : Syslink.Packet);
+
    Red_L   : LEDS.Flasher (LEDS.Red_L'Access);
    --  Indicate we've transmitted a packet.
 
@@ -52,6 +60,7 @@ package body Radiolink is
       end if;
 
       Syslink.Init;
+      Syslink.Register_Callback (Syslink.RADIO_GROUP, Syslink_Dispatch'Access);
 
       Set_Channel (Crazyflie_Config.RADIO_CHANNEL);
       Set_Data_Rate (Crazyflie_Config.RADIO_DATARATE);

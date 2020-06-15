@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -27,11 +28,48 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with One_Wire;
-with Power_Management;
-with Radiolink;
+with Ada.Synchronous_Task_Control;
+with Ada.Unchecked_Conversion;
+with UART_Syslink;
 
 package body Syslink is
+
+   --  Global variables and constants
+
+   --  Synchronization bytes.
+   START_BYTE1 : constant Types.T_Uint8 := 16#BC#;
+   START_BYTE2 : constant Types.T_Uint8 := 16#CF#;
+
+   --  Bitwise mask to get the group type of a packet.
+   GROUP_MASK : constant Types.T_Uint8 := 16#F0#;
+
+   --  Buffer used for transmission.
+   Tx_Buffer : UART_Syslink.DMA_Data;
+
+   Is_Init         : Boolean := False;
+   Syslink_Access  : Ada.Synchronous_Task_Control.Suspension_Object;
+   Dropped_Packets : Natural := 0;
+
+   Callbacks : array (Packet_Group_Type) of Callback;
+
+   --  Types
+
+   type Rx_States is (WAIT_FOR_FIRST_START,
+                      WAIT_FOR_SECOND_START,
+                      WAIT_FOR_TYPE,
+                      WAIT_FOR_LENGTH,
+                      WAIT_FOR_DATA,
+                      WAIT_FOR_CHKSUM_1,
+                      WAIT_FOR_CHKSUM_2);
+
+   --  Procedures and functions
+
+   function T_Uint8_To_Slp_Type is new Ada.Unchecked_Conversion
+     (Types.T_Uint8, Packet_Type);
+
+   --  Route the incoming packet by sending it to the appropriate layer
+   --  (Radiolink, Power_Management etc.).
+   procedure Route_Incoming_Packet (Rx_Sl_Packet : Packet);
 
    ----------
    -- Init --
@@ -58,6 +96,26 @@ package body Syslink is
    begin
       return Is_Init;
    end Test;
+
+   -----------------------
+   -- Register_Callback --
+   -----------------------
+
+   procedure Register_Callback
+        (Group  : Packet_Group_Type;
+         Callbk  : Callback) is
+   begin
+      Callbacks (Group) := Callbk;
+   end Register_Callback;
+
+   -------------------------
+   -- Unregister_Callback --
+   -------------------------
+
+   procedure Unregister_Callback (Group  : Packet_Group_Type) is
+   begin
+      Callbacks (Group) := null;
+   end Unregister_Callback;
 
    -----------------
    -- Send_Packet --
@@ -107,14 +165,9 @@ package body Syslink is
         and GROUP_MASK;
       Group_Type := Packet_Group_Type'Enum_Val (Group_Type_Raw);
 
-      case Group_Type is
-         when RADIO_GROUP =>
-            Radiolink.Syslink_Dispatch (Rx_Sl_Packet);
-         when PM_GROUP =>
-            Power_Management.Syslink_Update (Rx_Sl_Packet);
-         when OW_GROUP =>
-            One_Wire.Receive (Rx_Sl_Packet);
-      end case;
+      if Callbacks (Group_Type) /= null then
+         Callbacks (Group_Type) (Rx_Sl_Packet);
+      end if;
    end Route_Incoming_Packet;
 
    ---------------

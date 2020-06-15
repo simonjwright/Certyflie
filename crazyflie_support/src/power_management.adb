@@ -31,6 +31,7 @@
 with Ada.Unchecked_Conversion;
 
 with Log;
+with Syslink;
 
 package body Power_Management
 with Refined_State => (Power_Management_State => (Current_Power_Info,
@@ -41,6 +42,11 @@ with Refined_State => (Power_Management_State => (Current_Power_Info,
                                                   Battery_Low_Time_Stamp))
 is
 
+   -- Local procedures --
+
+   --  Update the power state information.
+   procedure Syslink_Update (Sl_Packet : Syslink.Packet);
+
    ----------
    -- Init --
    ----------
@@ -48,6 +54,8 @@ is
    procedure Init is
    begin
       Current_Power_State := On_Battery;
+
+      Syslink.Register_Callback (Syslink.PM_GROUP, Syslink_Update'Access);
 
       declare
          Dummy : Boolean;

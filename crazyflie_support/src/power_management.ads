@@ -31,7 +31,6 @@ with Ada.Real_Time;
 with System;
 
 with LEDS;
-with Syslink;
 with Types;
 
 package Power_Management
@@ -73,9 +72,6 @@ is
 
    --  Initialize the power management module.
    procedure Init;
-
-   --  Update the power state information.
-   procedure Syslink_Update (Sl_Packet : Syslink.Packet);
 
    --  Return True is the Crazyflie is discharging, False when it's charging.
    function Is_Discharging return Boolean;
