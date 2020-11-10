@@ -44,9 +44,6 @@ package One_Wire is
 
    function Test return Boolean;
 
-   procedure Receive (Pkt : Syslink.Packet)
-   with Pre => Pkt.Slp_Type in OW_Packet_Type;
-
    function Scan (Number_Of_Targets : out Types.T_Uint8) return Boolean;
 
    function Get_Info (Target : Types.T_Uint8;

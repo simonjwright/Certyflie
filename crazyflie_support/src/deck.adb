@@ -1,8 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Certyflie                                   --
 --                                                                          --
---                     Copyright (C) 2015-2017, AdaCore                     --
---          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
+--        Copyright (C) 2020, Simon Wright <simon@pushface.org>             --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -28,64 +27,62 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with CRTP;
-with Syslink;
+with Flow_Deck;
+with One_Wire;
 with Types;
 
-private with System;
-private with Generic_Queue;
+with Semihosting;
 
-package Radiolink is
-
-   --  Constants
-
-   --  Size of transmission/receptions queues.
-   TX_QUEUE_SIZE : constant := 3;
-   RX_QUEUE_SIZE : constant := 5;
-
-   --  Procedures and functions
-
-   --  Initialize the Radiolink layer.
-   procedure Init;
-
-   --  Set the radio channel.
-   procedure Set_Channel (Channel : Types.T_Uint8);
-
-   --  Set the radio address.
-   procedure Set_Address (Address : Types.T_Uint64);
-
-   --  Set the radio data rate.
-   procedure Set_Data_Rate (Data_Rate : Types.T_Uint8);
-
-   --  Send a packet to Radiolink layer.
-   function Send_Packet (Packet : CRTP.Packet) return Boolean;
-
-   --  Receive a packet from Radiolink layer.
-   --  Putting the task calling it in sleep mode until a packet is received.
-   procedure Receive_Packet_Blocking (Packet : out CRTP.Packet);
-
-private
-
-   package Syslink_Queue is new Generic_Queue (Syslink.Packet);
-   package CRTP_Queue is new Generic_Queue (CRTP.Packet);
-
-   --  Global variables and constants
+package body Deck is
 
    Is_Init : Boolean := False;
-   RSSI    : Types.T_Uint8;
 
-   --  Tasks and protected objects
+   procedure Init is
+      --  Going to check the number of One_Wire targets, and (if one)
+      --  try to initialize the flow deck.
+      OW_Scan_OK : Boolean;
+      Number_Of_OW_Targets : Types.T_Uint8;
+      use type Types.T_Uint8;
+   begin
+      One_Wire.Init;
+      if One_Wire.Test then
+         OW_Scan_OK := One_Wire.Scan
+           (Number_Of_Targets => Number_Of_OW_Targets);
+         if OW_Scan_OK then
+            if Number_Of_OW_Targets = 1 then
+               declare
+                  Serial : One_Wire.Target_Serial;
+               begin
+                  if One_Wire.Get_Info (0, Serial) then
+                     Semihosting.Log_Line ("One_Wire.Get_Info:");
+                     for J of Serial loop
+                        Semihosting.Log (" " & J'Image);
+                     end loop;
+                     Semihosting.Log_New_Line;
+                  else
+                     Semihosting.Log_Line ("One_Wire.Get_Info failed");
+                  end if;
+               end;
+               Flow_Deck.Init;
+               if not Flow_Deck.Test then
+                  Semihosting.Log_Line
+                    ("Deck: Flow_Deck initialization failed");
+               end if;
+            else
+               Semihosting.Log_Line
+                 ("Number of OW targets:"
+                    & Number_Of_OW_Targets'Image
+                    & " should be 1 for this Flow Deck code");
+            end if;
+         else
+            Semihosting.Log_Line ("Deck: One_Wire.Scan failed");
+         end if;
+      else
+         Semihosting.Log_Line ("Deck: One_Wire not initialized");
+      end if;
+      Is_Init := True;
+   end Init;
 
-   pragma Warnings (Off,  "violate restriction No_Implicit_Heap_Allocation");
+   function Test return Boolean is (Is_Init);
 
-   --  Protected object queue used for transmission.
-   Tx_Queue : Syslink_Queue.Protected_Queue
-     (System.Interrupt_Priority'Last, TX_QUEUE_SIZE);
-
-   --  Protected object queue used for reception.
-   Rx_Queue : CRTP_Queue.Protected_Queue
-     (System.Interrupt_Priority'Last, RX_QUEUE_SIZE);
-
-   pragma Warnings (On,  "violate restriction No_Implicit_Heap_Allocation");
-
-end Radiolink;
+end Deck;

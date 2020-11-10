@@ -1,4 +1,4 @@
-with "crazyflie_support";
+with "Ada_Drivers_Library/ada_drivers_library";
 
 project Crazyflie is
 
@@ -11,7 +11,7 @@ project Crazyflie is
 
    for Languages use ("Ada");
    for Main use ("main.adb");
-   for Source_Dirs use ("src");
+   for Source_Dirs use ("src", "crazyflie_support/src");
 
    case SensorFusion is
       when "Mahony" =>

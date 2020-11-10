@@ -1,3 +1,9 @@
-obj/
-bin/
-crazyflie_support/lib
+obj*/
+tmp/
+gnatprove/
+Ada_Drivers_Library/
+
+.DS_Store
+
+cflie.*
+gpr_query.db*

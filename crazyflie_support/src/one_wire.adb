@@ -29,6 +29,11 @@
 
 package body One_Wire is
 
+   -- Local procedures --
+
+   procedure Receive (Pkt : Syslink.Packet)
+   with Pre => Pkt.Slp_Type in OW_Packet_Type;
+
    Unimplemented : exception;
 
    Read_Size : constant := 29;
@@ -79,7 +84,7 @@ package body One_Wire is
    procedure Init is
    begin
       Syslink.Init;
-      --  ?
+      Syslink.Register_Callback (Syslink.OW_GROUP, Receive'Access);
       Is_Init := True;
    end Init;
 

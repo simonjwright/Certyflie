@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -29,12 +30,9 @@
 
 --  Implements the link between the two Crazyflie MCUs.
 
-with Ada.Synchronous_Task_Control;
-with Ada.Unchecked_Conversion;
 with System;
 
 with Types;
-private with UART_Syslink;
 
 package Syslink is
 
@@ -78,51 +76,6 @@ package Syslink is
                         OW_WRITE              => 16#23#);
    for Packet_Type'Size use 8;
 
-   --  Type for Syslink packet data.
-   subtype Syslink_Data is Types.T_Uint8_Array (1 .. MTU);
-
-   --  Type for Syslink packets.
-   type Packet is record
-      Slp_Type : Packet_Type;
-      Length   : Types.T_Uint8;
-      Data     : Syslink_Data;
-   end record;
-
-   --  Initialize the Syslink protocol.
-   procedure Init;
-
-   --  Test the Syslink protocol.
-   function Test return Boolean;
-
-   --  Send a packet to the nrf51 chip.
-   procedure Send_Packet (Sl_Packet : Packet);
-
-   --  Tasks and protected objects
-
-   task type Task_Type (Prio : System.Priority) is
-      pragma Priority (Prio);
-   end Task_Type;
-
-private
-
-   --  Global variables and constants
-
-   --  Synchronization bytes.
-   START_BYTE1 : constant Types.T_Uint8 := 16#BC#;
-   START_BYTE2 : constant Types.T_Uint8 := 16#CF#;
-
-   --  Bitwise mask to get the group type of a packet.
-   GROUP_MASK : constant Types.T_Uint8 := 16#F0#;
-
-   --  Buffer used for transmission.
-   Tx_Buffer : UART_Syslink.DMA_Data;
-
-   Is_Init         : Boolean := False;
-   Syslink_Access  : Ada.Synchronous_Task_Control.Suspension_Object;
-   Dropped_Packets : Natural := 0;
-
-   --  Types
-
    --  Syslink packet group type.
    type Packet_Group_Type is (RADIO_GROUP,
                               PM_GROUP,
@@ -133,21 +86,41 @@ private
                               OW_GROUP    => 16#20#);
    for Packet_Group_Type'Size use 8;
 
-   type Rx_States is (WAIT_FOR_FIRST_START,
-                      WAIT_FOR_SECOND_START,
-                      WAIT_FOR_TYPE,
-                      WAIT_FOR_LENGTH,
-                      WAIT_FOR_DATA,
-                      WAIT_FOR_CHKSUM_1,
-                      WAIT_FOR_CHKSUM_2);
+   --  Type for Syslink packet data.
+   subtype Syslink_Data is Types.T_Uint8_Array (1 .. MTU);
 
-   --  Procedures and functions
+   --  Type for Syslink packets.
+   type Packet is record
+      Slp_Type : Packet_Type;
+      Length   : Types.T_Uint8;
+      Data     : Syslink_Data;
+   end record;
 
-   function T_Uint8_To_Slp_Type is new Ada.Unchecked_Conversion
-     (Types.T_Uint8, Packet_Type);
+   --  Function pointer type for callbacks.
+   type Callback is access procedure (Pkt : Packet);
 
-   --  Route the incoming packet by sending it to the appropriate layer
-   --  (Radiolink, Power_Management etc.).
-   procedure Route_Incoming_Packet (Rx_Sl_Packet : Packet);
+   --  Initialize the Syslink protocol.
+   procedure Init;
+
+   --  Test the Syslink protocol.
+   function Test return Boolean;
+
+   --  Send a packet to the nrf51 chip.
+   procedure Send_Packet (Sl_Packet : Packet);
+
+   --  Register a callback to be called when a packet of a particular
+   --  group is received.
+   procedure Register_Callback
+     (Group  : Packet_Group_Type;
+      Callbk : Callback);
+
+   --  Unregister the callback for this group.
+   procedure Unregister_Callback (Group : Packet_Group_Type);
+
+   --  Tasks and protected objects
+
+   task type Task_Type (Prio : System.Priority) is
+      pragma Priority (Prio);
+   end Task_Type;
 
 end Syslink;
