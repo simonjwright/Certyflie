@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--           Copyright (C) 2020, Simon Wright <simon@pushface.org>          --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -28,33 +29,39 @@
 ------------------------------------------------------------------------------
 
 with Ada.Numerics.Elementary_Functions; use Ada.Numerics.Elementary_Functions;
+with Ada.Synchronous_Task_Control;
 
 with STM32.Board;
 with STM32.I2C;
 with Crazyflie_Config;
 with Console;
+with Parameter;
 
 with AK8963;
 
-package body IMU
-with Refined_State => (IMU_State => (Is_Init,
-                                     Is_Barometer_Avalaible,
-                                     Is_Magnetomer_Availaible,
-                                     Is_Calibrated,
-                                     Variance_Sample_Time,
-                                     Acc_Lp_Att_Factor,
-                                     Accel_IMU,
-                                     Gyro_IMU,
-                                     Accel_LPF,
-                                     Accel_Stored_Values,
-                                     Accel_LPF_Aligned,
-                                     Cos_Pitch,
-                                     Sin_Pitch,
-                                     Cos_Roll,
-                                     Sin_Roll,
-                                     Gyro_Bias))
+with LPS25H.I2C;
+with Ravenscar_Time;
 
-is
+package body IMU is
+
+   --  Both MPU9250 and LPS25H use I2C3 (known here as
+   --  STM32.Board.MPU_Device, not how I would have done it I think?)
+   I2C_Device_SO : Ada.Synchronous_Task_Control.Suspension_Object;
+
+   --  Barometer-related stuff
+
+   LPS25H_Sensor : LPS25H.I2C.LPS25H_Barometric_Sensor_I2C
+     (Port              => STM32.Board.MPU_Device.Port,
+      Slave_Address_Odd => True,
+      Timing            => Ravenscar_Time.Delays);
+
+   --  Local procedures
+
+   procedure Read_6_Unprotected
+     (Gyro : in out Gyroscope_Data;
+      Acc  : in out Accelerometer_Data);
+
+   procedure Initialize_Parameter_Logging;
 
    --------------
    -- Init --
@@ -68,6 +75,10 @@ is
       if Is_Init then
          return;
       end if;
+
+      --  This should be the first call that needs to affect
+      --  I2C_Device_SO, which is initially False. On conclusion, we
+      --  need to set it True.
 
       STM32.Board.Initialize_I2C_GPIO
         (STM32.I2C.I2C_Port (STM32.Board.MPU_Device.Port.all));
@@ -117,7 +128,7 @@ is
       if Use_Mag then
          AK8963.Initialize (STM32.Board.MAG_Device);
          if AK8963.Test_Connection (STM32.Board.MAG_Device) then
-            Is_Magnetomer_Availaible := True;
+            Is_Magnetometer_Available := True;
             AK8963.Set_Mode (STM32.Board.MAG_Device,
                              AK8963.Continuous_2,
                              AK8963.Mode_16bit);
@@ -131,7 +142,14 @@ is
       Cos_Roll := Cos (0.0);
       Sin_Roll := Sin (0.0);
 
+      LPS25H_Sensor.Initialize;
+      Is_Barometer_Available := LPS25H_Sensor.Is_Initialized;
+
       Is_Init := True;
+
+      Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
+
+      Initialize_Parameter_Logging;
    end Init;
 
    --------------
@@ -141,22 +159,28 @@ is
    function Test return Boolean
    is
    begin
+      Ada.Synchronous_Task_Control.Suspend_Until_True (I2C_Device_SO);
+
       if not MPU9250_Test_Connection (STM32.Board.MPU_Device) then
+         Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
          return False;
       end if;
 
       if not MPU9250_Self_Test
         (STM32.Board.MPU_Device, Console.Test, Console.Put_Line'Access)
       then
+         Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
          return False;
       end if;
 
-      if Is_Magnetomer_Availaible
+      if Is_Magnetometer_Available
         and then not AK8963.Self_Test (STM32.Board.MAG_Device)
       then
+         Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
          return False;
       end if;
 
+      Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
       return True;
    end Test;
 
@@ -172,6 +196,8 @@ is
       Start_Time  : Ada.Real_Time.Time;
       use type Ada.Real_Time.Time;
    begin
+      Ada.Synchronous_Task_Control.Suspend_Until_True (I2C_Device_SO);
+
       Test_Status := MPU9250_Self_Test
         (STM32.Board.MPU_Device, Console.Test, Console.Put_Line'Access);
       Start_Time := Ada.Real_Time.Clock;
@@ -191,7 +217,7 @@ is
             Roll := Tan (Acc_Out.Y / Acc_Out.Z) * 180.0 * Pi;
 
             if abs (Roll) < MAN_TEST_LEVEL_MAX
-               and abs (Pitch) < MAN_TEST_LEVEL_MAX
+              and abs (Pitch) < MAN_TEST_LEVEL_MAX
             then
                Test_Status := True;
             else
@@ -202,6 +228,7 @@ is
          end if;
       end if;
 
+      Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
       return Test_Status;
    end Manufacturing_Test_6;
 
@@ -214,6 +241,7 @@ is
       Has_Found_Bias : Boolean;
       Next_Period    : Ada.Real_Time.Time;
       use type Ada.Real_Time.Time;
+      Status         : Boolean;
    begin
       case Is_Calibrated is
          when Not_Calibrated =>
@@ -225,6 +253,9 @@ is
          when Calibration_Error =>
             return False;
       end case;
+
+      Ada.Synchronous_Task_Control.Suspend_Until_True (I2C_Device_SO);
+      --  From now on, quit by setting Status as required and "goto Quit".
 
       if Is_Calibrated = Not_Calibrated then
          Next_Period := Ada.Real_Time.Clock + UPDATE_DT_MS;
@@ -243,11 +274,13 @@ is
                   --  TODO: led sequence to indicate that it is calibrated
                   Is_Calibrated := Calibrated;
 
-                  return True;
+                  Status := True;
+                  goto Quit;
                else
                   Is_Calibrated := Calibration_Error;
 
-                  return False;
+                  Status := False;
+                  goto Quit;
                end if;
             end if;
 
@@ -256,7 +289,9 @@ is
          end loop;
       end if;
 
-      return False;
+      <<Quit>>
+      Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
+      return Status;
    end Calibrate_6;
 
    -----------------------
@@ -265,19 +300,19 @@ is
 
    function Has_Barometer return Boolean is
    begin
-      return Is_Barometer_Avalaible;
+      return Is_Barometer_Available;
    end Has_Barometer;
 
-   ----------------
-   -- Read_6 --
-   ----------------
+   ------------------------
+   -- Read_6_Unprotected --
+   ------------------------
 
-   procedure Read_6
+   procedure Read_6_Unprotected
      (Gyro : in out Gyroscope_Data;
       Acc  : in out Accelerometer_Data)
    is
    begin
-      --  We invert X and Y because the chip is almso inverted.
+      --  We invert X and Y because the chip is also inverted.
       MPU9250_Get_Motion_6 (STM32.Board.MPU_Device,
                             Accel_IMU.Y, Accel_IMU.X, Accel_IMU.Z,
                             Gyro_IMU.Y, Gyro_IMU.X, Gyro_IMU.Z);
@@ -300,6 +335,22 @@ is
       Acc.X := (-Accel_LPF_Aligned.X) * G_PER_LSB_CFG;
       Acc.Y := Accel_LPF_Aligned.Y * G_PER_LSB_CFG;
       Acc.Z := Accel_LPF_Aligned.Z * G_PER_LSB_CFG;
+   end Read_6_Unprotected;
+
+   ----------------
+   -- Read_6 --
+   ----------------
+
+   procedure Read_6
+     (Gyro : in out Gyroscope_Data;
+      Acc  : in out Accelerometer_Data)
+   is
+   begin
+      Ada.Synchronous_Task_Control.Suspend_Until_True (I2C_Device_SO);
+
+      Read_6_Unprotected (Gyro, Acc);
+
+      Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
    end Read_6;
 
    ----------------
@@ -312,8 +363,10 @@ is
       Mag  : in out Magnetometer_Data)
    is
    begin
-      Read_6 (Gyro, Acc);
-      if not Is_Magnetomer_Availaible then
+      Ada.Synchronous_Task_Control.Suspend_Until_True (I2C_Device_SO);
+
+      Read_6_Unprotected (Gyro, Acc);
+      if not Is_Magnetometer_Available then
          Mag := (others => 0.0);
 
       else
@@ -329,7 +382,36 @@ is
                      Z => Mz);
          end;
       end if;
+
+      Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
    end Read_9;
+
+   -------------------------
+   -- Read_Barometer_Data --
+   -------------------------
+
+   procedure Read_Barometer_Data
+     (Press  :    out T_Pressure;
+      Temp   :    out T_Temperature;
+      Asl    :    out T_Altitude;
+      Status :    out Boolean)
+   is
+      package Impl renames LPS25H;
+      Press_I : Impl.Pressure;
+      Temp_I : Impl.Temperature;
+      Asl_I : Impl.Altitude;
+   begin
+      Ada.Synchronous_Task_Control.Suspend_Until_True (I2C_Device_SO);
+
+      LPS25H_Sensor.Get_Data (Press_I, Temp_I, Asl_I, Status);
+      if Status then
+         Press := Press_I;
+         Temp := Temp_I;
+         Asl := Asl_I;
+      end if;
+
+      Ada.Synchronous_Task_Control.Set_True (I2C_Device_SO);
+   end Read_Barometer_Data;
 
    ------------------------
    -- Add_Bias_Value --
@@ -371,7 +453,7 @@ is
               Variance.Y < GYRO_VARIANCE_THRESHOLD_Y and
               Variance.Z < GYRO_VARIANCE_THRESHOLD_Z and
               Ada.Real_Time.Clock >
-                Variance_Sample_Time + GYRO_MIN_BIAS_TIMEOUT_MS
+              Variance_Sample_Time + GYRO_MIN_BIAS_TIMEOUT_MS
             then
                Variance_Sample_Time := Ada.Real_Time.Clock;
                Bias_Obj.Bias.X := Mean.X;
@@ -447,7 +529,7 @@ is
       Output : out Axis3_Float)
    is
       Input_F : constant Axis3_Float :=
-                  (Float (Input.X), Float (Input.Y), Float (Input.Z));
+        (Float (Input.X), Float (Input.Y), Float (Input.Z));
       Rx      : Axis3_Float;
       Ry      : Axis3_Float;
    begin
@@ -465,5 +547,44 @@ is
       Output.Y := Ry.Y;
       Output.Z := Ry.Z;
    end Acc_Align_To_Gravity;
+
+   ------------------------
+   -- Initialize_Logging --
+   ------------------------
+
+   procedure Initialize_Parameter_Logging is
+      Group_ID : Natural;
+      Group_Created : Boolean;
+      use Parameter;
+   begin
+      Create_Parameter_Group (Name        => "imu_sensors",
+                              Group_ID    => Group_ID,
+                              Has_Succeed => Group_Created);
+
+      if Group_Created then
+         declare
+            Dummy          : Boolean;
+            Parameter_Type : constant Parameter.Parameter_Variable_Type
+              := (Size      => One_Byte,
+                  Floating  => False,
+                  Signed    => False,
+                  Read_Only => True,
+                  others    => <>);
+         begin
+            Parameter.Append_Parameter_Variable_To_Group
+              (Group_ID,
+               Name           => "HMC5883L",
+               Parameter_Type => Parameter_Type,
+               Variable       => Is_Magnetometer_Available'Address,
+               Has_Succeed    => Dummy);
+            Parameter.Append_Parameter_Variable_To_Group
+              (Group_ID,
+               Name           => "MS5611",  -- LPS25H would be better!
+               Parameter_Type => Parameter_Type,
+               Variable       => Is_Barometer_Available'Address,
+               Has_Succeed    => Dummy);
+         end;
+      end if;
+   end Initialize_Parameter_Logging;
 
 end IMU;

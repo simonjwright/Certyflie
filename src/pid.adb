@@ -29,9 +29,7 @@
 
 with Safety;
 
-package body Pid
-with SPARK_Mode
-is
+package body Pid is
 
    ----------
    -- Init --
@@ -225,5 +223,21 @@ is
    begin
       Pid.Dt := Dt;
    end Set_Dt;
+
+   ---------------
+   -- Get_Integ --
+   ---------------
+
+   function Get_Integral_Term (Pid : Object) return T_I_Limit
+   is (Pid.Integ);
+
+   ---------------
+   -- Set_Integ --
+   ---------------
+
+   procedure Set_Integral_Term (Pid : in out Object; Integ : T_I_Limit) is
+   begin
+      Pid.Integ := Integ;
+   end Set_Integral_Term;
 
 end Pid;

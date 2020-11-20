@@ -64,6 +64,12 @@ package body Crazyflie_System is
       end if;
       --  Module initialization.
 
+      --  Initialize parameter logging. Do this early so other modules
+      --  can initialize their own logging.
+      Parameter.Init;
+      --  Add our own parameters.
+      Initialize_System_Parameter_Logging;
+
       --  Initialize LEDs, power management, sensors and actuators.
       LEDS.Init;
       Motors.Init;
@@ -81,10 +87,6 @@ package body Crazyflie_System is
 
       --  Initialize logging.
       Log.Init;
-
-      --  Initialize parameters.
-      Parameter.Init;
-      Initialize_System_Parameter_Logging;
 
       --  Initialize high level modules.
       Commander.Init;
@@ -115,18 +117,55 @@ package body Crazyflie_System is
    ----------------------
 
    function System_Self_Test return Boolean is
-      Self_Test_Passed : Boolean;
+      Self_Test_Passed : Boolean := True;
    begin
       LEDS.Set_System_State (LEDS.Self_Test);
-      Self_Test_Passed := LEDS.Test;
-      Self_Test_Passed := Self_Test_Passed and Motors.Test;
-      Self_Test_Passed := Self_Test_Passed and IMU.Test;
-      Self_Test_Passed := Self_Test_Passed and Communication.Test;
-      Self_Test_Passed := Self_Test_Passed and Memory.Test;
-      Self_Test_Passed := Self_Test_Passed and Commander.Test;
-      Self_Test_Passed := Self_Test_Passed and Stabilizer.Test;
-      --  pass &= estimatorKalmanTaskTest();
-      Self_Test_Passed := Self_Test_Passed and Deck.Test;
+      if not LEDS.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "LEDS.test failed";
+      end if;
+      if not Motors.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "Motors.test failed";
+      end if;
+      if not IMU.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "IMU.test failed";
+      end if;
+      if not Communication.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "Communication.test failed";
+      end if;
+      if not Memory.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "Memory.test failed";
+      end if;
+      if not Memory.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "Memory.test failed";
+      end if;
+      if not Commander.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "Commander.test failed";
+      end if;
+      if not Stabilizer.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "Stabilizer.test failed";
+      end if;
+      if not Deck.Test then
+         Self_Test_Passed := False;
+         raise Program_Error with "Deck.test failed";
+      end if;
+
+      --  Self_Test_Passed := LEDS.Test;
+      --  Self_Test_Passed := Self_Test_Passed and Motors.Test;
+      --  Self_Test_Passed := Self_Test_Passed and IMU.Test;
+      --  Self_Test_Passed := Self_Test_Passed and Communication.Test;
+      --  Self_Test_Passed := Self_Test_Passed and Memory.Test;
+      --  Self_Test_Passed := Self_Test_Passed and Commander.Test;
+      --  Self_Test_Passed := Self_Test_Passed and Stabilizer.Test;
+      --  --  pass &= estimatorKalmanTaskTest();
+      --  Self_Test_Passed := Self_Test_Passed and Deck.Test;
 
       if Self_Test_Passed then
          LEDS.Set_System_State (LEDS.Calibrating);
@@ -135,10 +174,12 @@ package body Crazyflie_System is
             LEDS.Set_System_State (LEDS.Ready);
          else
             LEDS.Set_System_State (LEDS.Failure);
+            raise Program_Error with "IMU calibrate didn't pass";
          end if;
 
       elsif not Self_Test_Passed then
          LEDS.Set_System_State (LEDS.Failure);
+         raise Program_Error with "self test didn't pass";
       end if;
 
       Self_Test_Status (OK => Self_Test_Passed);

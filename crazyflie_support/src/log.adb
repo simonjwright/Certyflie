@@ -259,7 +259,7 @@ package body Log is
 
    --  Map from client block ID to ours
    Block_Map : Block_Maps.Map (Capacity => MAX_BLOCKS,
-                                       Modulus  => MAX_BLOCKS);
+                               Modulus  => MAX_BLOCKS);
 
    --  Procedures and functions
 

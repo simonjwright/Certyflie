@@ -1,4 +1,6 @@
 LEDS
+UInt10
+*LPS25H
 *NSS
 *OW
 *PMW3901

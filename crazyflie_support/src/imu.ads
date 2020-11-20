@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--           Copyright (C) 2020, Simon Wright <simon@pushface.org>          --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -34,10 +35,7 @@ with Filter;
 with Types;
 with MPU9250;       use MPU9250;  --  in Ada Drivers Library
 
-package IMU
-with SPARK_Mode,
-  Abstract_State => IMU_State
-is
+package IMU is
 
    --  These ranges are deduced from the MPU9150 specification.
    --  It corresponds to the maximum range of values that can be output
@@ -57,7 +55,7 @@ is
    type T_Acc_Array is array (Integer range <>) of T_Acc;
 
    --  Type used to ensure that accelation normalization can't lead to a
-   --  division by zero in SensFusion6_Pack algorithms.
+   --  division by zero in SensFusion6 algorithms.
    MIN_NON_ZERO_ACC : constant := 2.0 ** (-74);
 
    subtype T_Acc_Lifted is T_Acc; -- with
@@ -87,6 +85,11 @@ is
       Y : T_Mag;
       Z : T_Mag;
    end record;
+
+   --  Types for barometric data.
+   subtype T_Pressure is Float range 450.0 .. 1100.0;   -- in mBar
+   subtype T_Temperature is Float range -20.0 .. 80.0;  -- in degrees Celsius
+   subtype T_Altitude is Float range -8000.0 .. 8000.0; -- m above sea level
 
    --  Global variables and constants
 
@@ -140,27 +143,26 @@ is
    --  Read gyro and accelerometer measurements from the IMU.
    procedure Read_6
      (Gyro : in out Gyroscope_Data;
-      Acc  : in out Accelerometer_Data)
-     with
-       Global => null;
+      Acc  : in out Accelerometer_Data);
 
    --  Read gyro, accelerometer and magnetometer measurements from the IMU.
    procedure Read_9
      (Gyro : in out Gyroscope_Data;
       Acc  : in out Accelerometer_Data;
-      Mag  : in out Magnetometer_Data)
-     with
-       Global => null;
+      Mag  : in out Magnetometer_Data);
 
    --  Calibrates the IMU. Returns True if successful, False otherwise.
-   function Calibrate_6 return Boolean
-     with
-       Global => (Input => IMU_State);
+   function Calibrate_6 return Boolean;
 
    --  Return True if the IMU has an initialized barometer, False otherwise.
-   function Has_Barometer return Boolean
-     with
-       Global => (Input => IMU_State);
+   function Has_Barometer return Boolean;
+
+   procedure Read_Barometer_Data
+     (Press  :    out T_Pressure;
+      Temp   :    out T_Temperature;
+      Asl    :    out T_Altitude;
+      Status :    out Boolean)
+   with Pre => Has_Barometer;
 
 private
    --  Types
@@ -222,71 +224,39 @@ private
 
    --  Global variables and constants
 
-   Is_Init : Boolean := False
-     with
-       Part_Of => IMU_State;
+   Is_Init : Boolean := False;
 
    type Calibration_Status is
      (Not_Calibrated,
       Calibrated,
       Calibration_Error);
 
-   --  Barometer and magnetometer not avalaible for now.
-   --  TODO: add the code to manipulate them
-   Is_Barometer_Avalaible   : Boolean := False
-     with
-       Part_Of => IMU_State;
-   Is_Magnetomer_Availaible : Boolean := False
-     with
-       Part_Of => IMU_State;
-   Is_Calibrated            : Calibration_Status := Not_Calibrated
-     with
-       Part_Of => IMU_State;
+   --  Barometer not available for now.
+   --  TODO: add the code to manipulate it
+   Is_Barometer_Available    : Boolean := False;
+   Is_Magnetometer_Available : Boolean := False;
+   Is_Calibrated             : Calibration_Status := Not_Calibrated;
 
-   Variance_Sample_Time  : Ada.Real_Time.Time
-     with
-       Part_Of => IMU_State;
-   Acc_Lp_Att_Factor : Types.T_Uint8
-     with
-       Part_Of => IMU_State;
+   Variance_Sample_Time  : Ada.Real_Time.Time;
+   Acc_Lp_Att_Factor : Types.T_Uint8;
 
    --  Raw values retrieved from IMU
-   Accel_IMU           : Axis3_T_Int16
-     with
-       Part_Of => IMU_State;
-   Gyro_IMU            : Axis3_T_Int16
-     with
-       Part_Of => IMU_State;
+   Accel_IMU           : Axis3_T_Int16;
+   Gyro_IMU            : Axis3_T_Int16;
    --  Acceleration after applying the IIR LPF filter
-   Accel_LPF           : Axis3_T_Int32
-     with
-       Part_Of => IMU_State;
-   --  Use to stor the IIR LPF filter feedback
-   Accel_Stored_Values : Axis3_T_Int32
-     with
-       Part_Of => IMU_State;
+   Accel_LPF           : Axis3_T_Int32;
+   --  Use to store the IIR LPF filter feedback
+   Accel_Stored_Values : Axis3_T_Int32;
    --  Acceleration after aligning with gravity
-   Accel_LPF_Aligned   : Axis3_Float
-     with
-       Part_Of => IMU_State;
+   Accel_LPF_Aligned   : Axis3_Float;
 
-   Cos_Pitch : Float
-     with
-       Part_Of => IMU_State;
-   Sin_Pitch : Float
-     with
-       Part_Of => IMU_State;
-   Cos_Roll  : Float
-     with
-       Part_Of => IMU_State;
-   Sin_Roll  : Float
-     with
-       Part_Of => IMU_State;
+   Cos_Pitch : Float;
+   Sin_Pitch : Float;
+   Cos_Roll  : Float;
+   Sin_Roll  : Float;
 
    --  Bias objects used for bias calculation
-   Gyro_Bias : Bias_Object
-     with
-       Part_Of => IMU_State;
+   Gyro_Bias : Bias_Object;
 
    --  Procedures and functions
 
@@ -315,7 +285,7 @@ private
       Stored_Values : in out Axis3_T_Int32;
       Attenuation   : Types.T_Int32);
 
-   --  Compensate for a miss-aligned accelerometer. It uses the trim
+   --  Compensate for a misaligned accelerometer. It uses the trim
    --  data gathered from the UI and written in the config-block to
    --  rotate the accelerometer to be aligned with gravity.
    procedure Acc_Align_To_Gravity

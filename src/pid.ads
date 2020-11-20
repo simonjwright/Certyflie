@@ -38,9 +38,8 @@ generic
    COEFF_LOW_LIMIT   : Float;
    COEFF_HIGH_LIMIT  : Float;
 
-package Pid
-with SPARK_Mode
-is
+package Pid is
+
    --  Subtypes for inputs/outputs of the PID.
    subtype T_Input  is Float range INPUT_LOW_LIMIT .. INPUT_HIGH_LIMIT;
    subtype T_Output is Float range OUTPUT_LOW_LIMIT .. OUTPUT_HIGH_LIMIT;
@@ -48,30 +47,14 @@ is
      2.0 * INPUT_LOW_LIMIT .. 2.0 * INPUT_HIGH_LIMIT;
    subtype T_Deriv  is Float range
      4.0 * INPUT_LOW_LIMIT / Types.T_Delta_Time'First ..
-       4.0 * INPUT_HIGH_LIMIT / Types.T_Delta_Time'First;
+     4.0 * INPUT_HIGH_LIMIT / Types.T_Delta_Time'First;
    subtype T_I_Limit is Float range
      -Pid_Parameters.DEFAULT_INTEGRATION_LIMIT ..
      Pid_Parameters.DEFAULT_INTEGRATION_LIMIT;
    subtype T_Coeff is Float range COEFF_LOW_LIMIT .. COEFF_HIGH_LIMIT;
 
    --  Types
-   type Object is record
-      Desired      : T_Input;       --  Set point
-      Error        : T_Error;       --  Error
-      Prev_Error   : T_Error;       --  Previous Error
-      Integ        : T_I_Limit;     --  Integral
-      Deriv        : T_Deriv;       --  Derivative
-      Kp           : T_Coeff;       --  Proportional Gain
-      Ki           : T_Coeff;       --  Integral Gain
-      Kd           : T_Coeff;       --  Derivative Gain
-      Out_P        : T_Output;      --  Proportional Output (debug)
-      Out_I        : T_Output;      --  Integral Output (debug)
-      Out_D        : T_Output;      --  Derivative Output (debug)
-      I_Limit_Low  : T_I_Limit;     --  Limit of integral term
-      I_Limit_High : T_I_Limit;     --  Limit of integral term
-      Dt           : Types.T_Delta_Time;  --  Delta Time
-   end record;
-   pragma Convention (C, Object);
+   type Object is private;
 
    --  Procedures and Functions
 
@@ -89,16 +72,14 @@ is
    --  Reset the PID error values.
    procedure Reset (Pid : in out Object);
 
-   --  Update the PID parameters. Set 'UpdateError' to 'False' is error
+   --  Update the PID parameters. Set 'UpdateError' to 'False' if error
    --  has been set previously for a special calculation with 'PidSetError'.
    procedure Update
      (Pid          : in out Object;
       Measured     : T_Input;
-      Update_Error : Boolean)
-     with
-       Depends => (Pid => (Measured, Pid, Update_Error));
+      Update_Error : Boolean);
 
-   --  Return the PID output. Must be called after 'PidUpdate'.
+   --  Return the PID output. Must be called after 'Update'.
    function Get_Output (Pid : Object) return Float;
 
    --  Find out if the PID is active.
@@ -107,9 +88,7 @@ is
    --  Set a new set point for the PID to track.
    procedure Set_Desired
      (Pid     : in out Object;
-      Desired : T_Input)
-     with
-       Post => Pid = Pid'Old'Update (Desired => Desired);
+      Desired : T_Input);
 
    --  Get the PID desired set point.
    function Get_Desired (Pid : Object) return Float;
@@ -117,51 +96,61 @@ is
    --  Set the new error. Used if special calculation is needed.
    procedure Set_Error
      (Pid   : in out Object;
-      Error : T_Error)
-     with
-       Post => Pid = Pid'Old'Update (Error => Error);
+      Error : T_Error);
 
    --  Set a new proprtional gain for the PID.
    procedure Set_Kp
      (Pid : in out Object;
-      Kp  : T_Coeff)
-     with
-       Post => Pid = Pid'Old'Update (Kp => Kp);
+      Kp  : T_Coeff);
 
    --  Set a new integral gain for the PID.
    procedure Set_Ki
      (Pid : in out Object;
-      Ki  : T_Coeff)
-     with
-       Post => Pid = Pid'Old'Update (Ki => Ki);
+      Ki  : T_Coeff);
 
    --  Set a new derivative gain for the PID.
    procedure Set_Kd
      (Pid : in out Object;
-      Kd  : T_Coeff)
-     with
-       Post => Pid = Pid'Old'Update (Kd => Kd);
+      Kd  : T_Coeff);
 
    --  Set a new low limit for the integral term.
    procedure Set_I_Limit_Low
      (Pid          : in out Object;
-      I_Limit_Low  : T_I_Limit)
-     with
-       Post => Pid = Pid'Old'Update (I_Limit_Low => I_Limit_Low);
+      I_Limit_Low  : T_I_Limit);
 
    --  Set a new high limit for the integral term.
    procedure Set_I_Limit_High
      (Pid           : in out Object;
-      I_Limit_High  : T_I_Limit)
-     with
-       Post => Pid = Pid'Old'Update (I_Limit_High => I_Limit_High);
+      I_Limit_High  : T_I_Limit);
 
-   --  Set a new dt gain for the PID. Defaults to
-   --  IMU_UPDATE_DT upon construction.
+   --  Set a new dt gain for the PID.
+   --  Defaults to IMU_UPDATE_DT upon construction. ???
    procedure Set_Dt
      (Pid : in out Object;
-      Dt  : Types.T_Delta_Time)
-     with
-       Post => Pid = Pid'Old'Update (Dt => Dt);
+      Dt  : Types.T_Delta_Time);
+
+   --  Used for Altitude Hold.
+   function Get_Integral_Term (Pid : Object) return T_I_Limit;
+   procedure Set_Integral_Term (Pid : in out Object; Integ : T_I_Limit);
+
+private
+
+   type Object is record
+      Desired      : T_Input            := 0.0; --  Set point
+      Error        : T_Error            := 0.0; --  Error
+      Prev_Error   : T_Error            := 0.0; --  Previous Error
+      Integ        : T_I_Limit          := 0.0; --  Integral
+      Deriv        : T_Deriv            := 0.0; --  Derivative
+      Kp           : T_Coeff            := 0.0; --  Proportional Gain
+      Ki           : T_Coeff            := 0.0; --  Integral Gain
+      Kd           : T_Coeff            := 0.0; --  Derivative Gain
+      Out_P        : T_Output           := 0.0; --  Proportional Output (debug)
+      Out_I        : T_Output           := 0.0; --  Integral Output (debug)
+      Out_D        : T_Output           := 0.0; --  Derivative Output (debug)
+      I_Limit_Low  : T_I_Limit          := 0.0; --  Limit of integral term
+      I_Limit_High : T_I_Limit          := 0.0; --  Limit of integral term
+      Dt           : Types.T_Delta_Time := 0.1; --  Delta Time
+   end record;
+   pragma Convention (C, Object);
 
 end Pid;

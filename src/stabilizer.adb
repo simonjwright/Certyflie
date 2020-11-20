@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2017, AdaCore                     --
+--           Copyright (C) 2020, Simon Wright <simon@pushface.org>          --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -27,74 +28,255 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
+--  Previously in the spec
+with Commander;
+with Controller;
+with Free_Fall;
+with IMU;
+with Motors;
+with Pid;
+with Pid_Parameters;
+with Power_Management;
+with SensFusion6;
+pragma Elaborate_All (Pid); -- why?
+
 with Config;
 with Safety;
 with Log;
 
 package body Stabilizer
-with SPARK_Mode,
-  Refined_State => (Stabilizer_State    => Is_Init,
-                    IMU_Outputs         => (Acc,
-                                            Gyro,
-                                            Mag),
-                    Actual_Angles       => (Euler_Roll_Actual,
-                                            Euler_Pitch_Actual,
-                                            Euler_Yaw_Actual),
-                    Desired_Angles      => (Euler_Roll_Desired,
-                                            Euler_Pitch_Desired,
-                                            Euler_Yaw_Desired),
-                    Desired_Rates       => (Roll_Rate_Desired,
-                                            Pitch_Rate_Desired,
-                                            Yaw_Rate_Desired),
-                    Command_Types       => (Roll_Type,
-                                            Pitch_Type,
-                                            Yaw_Type),
-                    Actuator_Commands   => (Actuator_Thrust,
-                                            Actuator_Roll,
-                                            Actuator_Pitch,
-                                            Actuator_Yaw),
-                    Motor_Powers        => (Motor_Power_M1,
-                                            Motor_Power_M2,
-                                            Motor_Power_M3,
-                                            Motor_Power_M4),
-                    V_Speed_Parameters  => (V_Speed_ASL_Fac,
-                                            V_Speed_Acc_Fac,
-                                            V_Acc_Deadband,
-                                            V_Speed_ASL_Deadband,
-                                            V_Speed_Limit,
-                                            V_Bias_Alpha),
-                    Asl_Parameters      => (Asl_Err_Deadband,
-                                            Asl_Alpha,
-                                            Asl_Alpha_Long),
-                    Alt_Hold_Parameters => (Alt_Hold_Err_Max,
-                                            Alt_Hold_Change_SENS,
-                                            Alt_Pid_Asl_Fac,
-                                            Alt_Pid_Alpha,
-                                            Alt_Hold_Base_Thrust,
-                                            Alt_Hold_Min_Thrust,
-                                            Alt_Hold_Max_Thrust),
-                    V_Speed_Variables   => (Acc_WZ,
-                                            Acc_MAG,
-                                            V_Speed,
-                                            V_Speed_Acc,
-                                            V_Speed_ASL),
-                    Asl_Variables       => (Temperature,
-                                            Pressure,
-                                            Asl,
-                                            Asl_Raw,
-                                            Asl_Long),
-                    Alt_Hold_Variables  => (Alt_Hold_PID,
-                                            Alt_Hold,
-                                            Set_Alt_Hold,
-                                            Alt_Hold_PID_Val,
-                                            Alt_Hold_Err,
-                                            Alt_Hold_Change,
-                                            Alt_Hold_Target))
+--  with SPARK_Mode,
+--    Refined_State => (Stabilizer_State    => Is_Init,
+--                      IMU_Outputs         => (Acc,
+--                                              Gyro,
+--                                              Mag),
+--                      Actual_Angles       => (Euler_Roll_Actual,
+--                                              Euler_Pitch_Actual,
+--                                              Euler_Yaw_Actual),
+--                      Desired_Angles      => (Euler_Roll_Desired,
+--                                              Euler_Pitch_Desired,
+--                                              Euler_Yaw_Desired),
+--                      Desired_Rates       => (Roll_Rate_Desired,
+--                                              Pitch_Rate_Desired,
+--                                              Yaw_Rate_Desired),
+--                      Command_Types       => (Roll_Type,
+--                                              Pitch_Type,
+--                                              Yaw_Type),
+--                      Actuator_Commands   => (Actuator_Thrust,
+--                                              Actuator_Roll,
+--                                              Actuator_Pitch,
+--                                              Actuator_Yaw),
+--                      Motor_Powers        => (Motor_Power_M1,
+--                                              Motor_Power_M2,
+--                                              Motor_Power_M3,
+--                                              Motor_Power_M4),
+--                      V_Speed_Parameters  => (V_Speed_ASL_Fac,
+--                                              V_Speed_Acc_Fac,
+--                                              V_Acc_Deadband,
+--                                              V_Speed_ASL_Deadband,
+--                                              V_Speed_Limit,
+--                                              V_Bias_Alpha),
+--                      Asl_Parameters      => (Asl_Err_Deadband,
+--                                              Asl_Alpha,
+--                                              Asl_Alpha_Long),
+--                      Alt_Hold_Parameters => (Alt_Hold_Err_Max,
+--                                              Alt_Hold_Change_SENS,
+--                                              Alt_Pid_Asl_Fac,
+--                                              Alt_Pid_Alpha,
+--                                              Alt_Hold_Base_Thrust,
+--                                              Alt_Hold_Min_Thrust,
+--                                              Alt_Hold_Max_Thrust),
+--                      V_Speed_Variables   => (Acc_WZ,
+--                                              Acc_MAG,
+--                                              V_Speed,
+--                                              V_Speed_Acc,
+--                                              V_Speed_ASL),
+--                      Asl_Variables       => (Temperature,
+--                                              Pressure,
+--                                              Asl,
+--                                              Asl_Raw,
+--                                              Asl_Long),
+--                      Alt_Hold_Variables  => (Alt_Hold_PID,
+--                                              Alt_Hold,
+--                                              Set_Alt_Hold,
+--                                              Alt_Hold_PID_Val,
+--                                              Alt_Hold_Err,
+--                                              Alt_Hold_Change,
+--                                              Alt_Hold_Target))
 is
+
+   --  Instantiation of PID generic package for Altitude
+   package Altitude_Pid is new Pid
+     (INPUT_LOW_LIMIT   => IMU.T_Altitude'First,
+      INPUT_HIGH_LIMIT  => IMU.T_Altitude'Last,
+      OUTPUT_LOW_LIMIT  => Float'First / 8.0,
+      OUTPUT_HIGH_LIMIT => Float'Last / 8.0,
+      COEFF_LOW_LIMIT   => Pid_Parameters.MIN_ALTITUDE_COEFF,
+      COEFF_HIGH_LIMIT  => Pid_Parameters.MAX_ALTITUDE_COEFF);
+
+   --  Global variables and constants
+
+   --  Defines in what divided update rate should the attitude
+   --  control loop run relative the rate control loop.
+
+   ATTITUDE_UPDATE_RATE_DIVIDER   : constant := 2;
+   ATTITUDE_UPDATE_RATE_DIVIDER_F : constant := 2.0;
+   --  500 Hz
+   FUSION_UPDATE_DT : constant :=
+     (1.0 / (IMU.UPDATE_FREQ / ATTITUDE_UPDATE_RATE_DIVIDER_F));
+
+   --  500hz/5 = 100hz for barometer measurements
+   ALTHOLD_UPDATE_RATE_DIVIDER   : constant := 5;
+   ALTHOLD_UPDATE_RATE_DIVIDER_F : constant := 5.0;
+   --  200 Hz
+   ALTHOLD_UPDATE_DT : constant := (1.0 / (IMU.UPDATE_FREQ));
+
+   Is_Init : Boolean := False;
+
+   --  IMU outputs. The IMU is composed of an accelerometer, a gyroscope
+   --  and a magnetometer (notused yet).
+   Gyro : IMU.Gyroscope_Data     := (0.0, 0.0, 0.0);
+   Acc  : IMU.Accelerometer_Data := (0.0, 0.0, 0.0);
+   Mag  : IMU.Magnetometer_Data  := (0.0, 0.0, 0.0);
+
+   --  Actual angles. These angles are calculated by fusing
+   --  accelerometer and gyro data in the Sensfusion algorithms.
+   Euler_Roll_Actual   : Types.T_Degrees := 0.0;
+   Euler_Pitch_Actual  : Types.T_Degrees := 0.0;
+   Euler_Yaw_Actual    : Types.T_Degrees := 0.0;
+
+   --  Desired angles. Obtained directly from the pilot.
+   Euler_Roll_Desired  : Types.T_Degrees := 0.0;
+   Euler_Pitch_Desired : Types.T_Degrees := 0.0;
+   Euler_Yaw_Desired   : Types.T_Degrees := 0.0;
+
+   --  Desired rates. Obtained directly from the pilot when
+   --  commands are in RATE mode, or from the rate PIDs when commands
+   --  are in ANGLE mode.
+   Roll_Rate_Desired   : IMU.T_Rate  := 0.0;
+   Pitch_Rate_Desired  : IMU.T_Rate  := 0.0;
+   Yaw_Rate_Desired    : IMU.T_Rate  := 0.0;
+
+   --  Variables used to calculate the altitude above sea level (ASL).
+   Temperature  : IMU.T_Temperature := 0.0;
+   Pressure     : IMU.T_Pressure    := 1000.0;
+   Asl          : IMU.T_Altitude    := 0.0;
+   Asl_Raw      : IMU.T_Altitude    := 0.0;
+   Asl_Long     : IMU.T_Altitude    := 0.0;
+
+   --  Variables used to calculate the vertical speed
+   Acc_WZ       : Float   := 0.0;
+   Acc_MAG      : Float   := 0.0;
+   V_Speed_ASL  : Types.T_Speed := 0.0;
+   V_Speed_Acc  : Types.T_Speed := 0.0;
+   V_Speed      : Types.T_Speed := 0.0; --  Vertical speed (world frame)
+                                        --  integrated from vertical
+                                        --  acceleration.
+
+   --  Variables used for the Altitude Hold mode.
+   Alt_Hold_PID : Altitude_Pid.Object;
+   --  Used for altitute hold mode.
+   --  It gets reset when the bat ??? status changes.
+   Alt_Hold     : Boolean := False;
+   --  Currently in altitude hold mode.
+   Set_Alt_Hold : Boolean := False;
+   --  Hover mode just being activated.
+   Alt_Hold_PID_Val : IMU.T_Altitude := 0.0;
+   --  Output of the PID controller.
+   Alt_Hold_Err     : Float := 0.0;
+   --  Altitude error.
+   Alt_Hold_Change  : IMU.T_Altitude := 0.0;
+   --  Change in target altitude.
+   Alt_Hold_Target  : IMU.T_Altitude := -1.0;
+   --  Target altitude.
+
+   --  Altitude hold & barometer params
+
+   --  PID gain constants used everytime we reinitialise the PID controller.
+   ALT_HOLD_KP          : constant := 0.5;
+   ALT_HOLD_KI          : constant := 0.18;
+   ALT_HOLD_KD          : constant := 0.0;
+
+   --  Parameters used to calculate the vertical speed.
+   V_Speed_ASL_Fac      : constant := 0.0;
+   V_Speed_Acc_Fac      : constant := -48.0;
+   V_Acc_Deadband       : constant := 0.05;
+   --  Vertical acceleration deadband.
+   V_Speed_ASL_Deadband : constant := 0.005;
+   --  Vertical speed barometer deadband.
+   V_Speed_Limit        : constant := 0.05;
+   --  To saturate vertical velocity.
+   V_Bias_Alpha         : constant := 0.98;
+   --  Fusing factor used in ASL calc.
+
+   --  Parameters used to calculate the altitude above see level (ASL).
+   Asl_Err_Deadband     : constant := 0.00;
+   --  error (target - altitude) deadband.
+   Asl_Alpha            : constant := 0.92;
+   --  Short term smoothing.
+   Asl_Alpha_Long       : constant := 0.93;
+   --  Long term smoothing.
+
+   --  Parameters used for the Altitude Hold mode.
+   Alt_Hold_Err_Max     : constant := 1.0;
+   --  Max cap on current estimated altitude vs target altitude in
+   --  meters.
+   Alt_Hold_Change_SENS : constant := 200.0;
+   --  Sensitivity of target altitude change (thrust input control)
+   --  while hovering.  Lower = more sensitive & faster changes
+   Alt_Pid_Asl_Fac          : constant := 13000.0;
+   --  Relates meters asl to thrust.
+   Alt_Pid_Alpha            : constant := 0.8;
+   --  PID Smoothing.
+   Alt_Hold_Min_Thrust      : constant := 00000;
+   --  Minimum hover thrust.
+   Alt_Hold_Base_Thrust     : constant := 43000;
+   --  Approximate throttle needed when in perfect hover.  More weight
+   --  / older battery can use a higher value.
+   Alt_Hold_Max_Thrust  : constant := 60000;
+   --  Max altitude hold thrust.
+
+   --  Command variables used to control each angle.
+   Roll_Type            : Commander.RPY_Type := Commander.ANGLE;
+   Pitch_Type           : Commander.RPY_Type := Commander.ANGLE;
+   Yaw_Type             : Commander.RPY_Type := Commander.RATE;
+
+   --  Variables output from each rate PID, and from the Pilot (Thrust).
+   Actuator_Thrust : Types.T_Uint16 := 0;
+   Actuator_Roll   : Types.T_Int16  := 0;
+   Actuator_Pitch  : Types.T_Int16  := 0;
+   Actuator_Yaw    : Types.T_Int16  := 0;
+
+   --  Variables used to control each motor's power.
+   Motor_Power_M4  : Types.T_Uint16 := 0;
+   Motor_Power_M2  : Types.T_Uint16 := 0;
+   Motor_Power_M1  : Types.T_Uint16 := 0;
+   Motor_Power_M3  : Types.T_Uint16 := 0;
 
    --  Body declarations
 
    procedure Init_Logging;
+
+   --  Function called when Alt_Hold mode is activated. Holds the drone
+   --  at a target altitude.
+   procedure Alt_Hold_Update;
+
+   --  Update the Attitude PIDs.
+   procedure Update_Attitude;
+
+   --  Update the Rate PIDs.
+   procedure Update_Rate;
+
+   --  Distribute power to the actuators with the PIDs outputs.
+   procedure Distribute_Power
+     (Thrust : Types.T_Uint16;
+      Roll   : Types.T_Int16;
+      Pitch  : Types.T_Int16;
+      Yaw    : Types.T_Int16);
+
+   --  Limit the given thrust to the maximum thrust supported by the motors.
+   function Limit_Thrust (Value : Types.T_Int32) return Types.T_Uint16;
+   pragma Inline (Limit_Thrust);
 
    --  Private procedures and functions
 
@@ -103,7 +285,6 @@ is
    ------------------
 
    procedure Init_Logging
-     with SPARK_Mode => Off -- 'Address isn't allowed in SPARK
    is
       Dummy : Boolean;
    begin
@@ -147,6 +328,22 @@ is
                         Name     => "thrust",
                         Typ      => Log.UINT16,
                         Variable => Actuator_Thrust'Address,
+                        Success  => Dummy);
+
+      Log.Add_Variable (Group    => "baro",
+                        Name     => "asl",
+                        Typ      => Log.FLOAT,
+                        Variable => Asl'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "baro",
+                        Name     => "temperature",
+                        Typ      => Log.FLOAT,
+                        Variable => Temperature'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "baro",
+                        Name     => "pressure",
+                        Typ      => Log.FLOAT,
+                        Variable => Pressure'Address,
                         Success  => Dummy);
    end Init_Logging;
 
@@ -222,7 +419,7 @@ is
       SensFusion6.Get_Euler_RPY (Euler_Roll_Actual,
                                  Euler_Pitch_Actual,
                                  Euler_Yaw_Actual);
-      --  Vertical acceleration woithout gravity
+      --  Vertical acceleration without gravity
       Acc_WZ := SensFusion6.Get_AccZ_Without_Gravity (Acc.X, Acc.Y, Acc.Z);
       Acc_MAG := (Acc.X * Acc.X) + (Acc.Y * Acc.Y) + (Acc.Z * Acc.Z);
 
@@ -281,10 +478,10 @@ is
 
    procedure Alt_Hold_Update
    is
-      LPS25H_Data_Valid   : Boolean;
+      Barometer_Data_Valid   : Boolean;
       Prev_Integ          : Float;
       Baro_V_Speed        : Types.T_Speed;
-      Alt_Hold_PID_Out    : LPS25h.T_Altitude;
+      Alt_Hold_PID_Out    : IMU.T_Altitude;
       Raw_Thrust          : Types.T_Int16;
       use type Types.T_Int32;
    begin
@@ -292,17 +489,17 @@ is
       Commander.Get_Alt_Hold (Alt_Hold, Set_Alt_Hold, Alt_Hold_Change);
 
       --  Get barometer altitude estimations
-      LPS25h.LPS25h_Get_Data
-        (Pressure, Temperature, Asl_Raw, LPS25H_Data_Valid);
-      if LPS25H_Data_Valid then
+      IMU.Read_Barometer_Data
+        (Pressure, Temperature, Asl_Raw, Barometer_Data_Valid);
+      if Barometer_Data_Valid then
          Asl := Safety.Saturate
            (Asl * Asl_Alpha + Asl_Raw * (1.0 - Asl_Alpha),
-            LPS25h.T_Altitude'First,
-            LPS25h.T_Altitude'Last);
+            IMU.T_Altitude'First,
+            IMU.T_Altitude'Last);
          Asl_Long := Safety.Saturate
            (Asl_Long * Asl_Alpha_Long + Asl_Raw * (1.0 - Asl_Alpha_Long),
-            LPS25h.T_Altitude'First,
-            LPS25h.T_Altitude'Last);
+            IMU.T_Altitude'First,
+            IMU.T_Altitude'Last);
       end if;
 
       --  Estimate vertical speed based on successive barometer readings
@@ -320,7 +517,7 @@ is
 
       --  Reset Integral gain of PID controller if being charged
       if not Power_Management.Is_Discharging then
-         Alt_Hold_PID.Integ := 0.0;
+         Altitude_Pid.Set_Integral_Term (Alt_Hold_PID, 0.0);
       end if;
 
       --  Altitude hold mode just activated, set target altitude as current
@@ -329,33 +526,33 @@ is
          --  Set target altitude to current altitude
          Alt_Hold_Target := Asl;
          --  Cache last integral term for reuse after PID init
-         Prev_Integ := Alt_Hold_PID.Integ;
+         Prev_Integ := Altitude_Pid.Get_Integral_Term (Alt_Hold_PID);
 
          --  Reset PID controller
          Altitude_Pid.Init (Alt_Hold_PID,
                             Asl,
                             ALT_HOLD_KP,
-                            ALT_HOLD_KP,
+                            ALT_HOLD_KI,
                             ALT_HOLD_KD,
                             -Pid_Parameters.DEFAULT_INTEGRATION_LIMIT,
                             Pid_Parameters.DEFAULT_INTEGRATION_LIMIT,
                             ALTHOLD_UPDATE_DT);
 
-         Alt_Hold_PID.Integ := Prev_Integ;
+         Altitude_Pid.Set_Integral_Term (Alt_Hold_PID, Prev_Integ);
 
          Altitude_Pid.Update (Alt_Hold_PID, Asl, False);
          Alt_Hold_PID_Val := Safety.Saturate
            (Altitude_Pid.Get_Output (Alt_Hold_PID),
-            LPS25h.T_Altitude'First,
-            LPS25h.T_Altitude'Last);
+            IMU.T_Altitude'First,
+            IMU.T_Altitude'Last);
       end if;
 
       if Alt_Hold then
          --  Update the target altitude and the PID
          Alt_Hold_Target := Safety.Saturate
            (Alt_Hold_Target + Alt_Hold_Change / Alt_Hold_Change_SENS,
-            LPS25h.T_Altitude'First,
-            LPS25h.T_Altitude'Last);
+            IMU.T_Altitude'First,
+            IMU.T_Altitude'Last);
          Altitude_Pid.Set_Desired (Alt_Hold_PID, Alt_Hold_Target);
 
          --  Compute error (current - target), limit the error
@@ -375,13 +572,13 @@ is
             Types.T_Speed'Last);
          Alt_Hold_PID_Out := Safety.Saturate
            (Altitude_Pid.Get_Output (Alt_Hold_PID),
-            LPS25h.T_Altitude'First,
-            LPS25h.T_Altitude'Last);
+            IMU.T_Altitude'First,
+            IMU.T_Altitude'Last);
 
          Alt_Hold_PID_Val := Safety.Saturate
            (Alt_Pid_Alpha * Alt_Hold_PID_Val + Baro_V_Speed + Alt_Hold_PID_Out,
-            LPS25h.T_Altitude'First,
-            LPS25h.T_Altitude'Last);
+            IMU.T_Altitude'First,
+            IMU.T_Altitude'Last);
 
          Raw_Thrust := Safety.Truncate_To_T_Int16
            (Alt_Hold_PID_Val * Alt_Pid_Asl_Fac);
