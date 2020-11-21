@@ -2,8 +2,10 @@ obj*/
 tmp/
 gnatprove/
 Ada_Drivers_Library/
+crazyflie_support/test/
 
 .DS_Store
 
 cflie.*
 gpr_query.db*
+gnatinspect.db
