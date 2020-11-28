@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -27,19 +28,96 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
+with Ada.Real_Time;
+with Console;
+with CRTP;
 with Safety;
 
-package body Commander
-with SPARK_Mode,
-  Refined_State => (Commander_State  => (Is_Init,
-                                         Is_Inactive,
-                                         Alt_Hold_Mode,
-                                         Alt_Hold_Mode_Old,
-                                         Thrust_Locked,
-                                         Side,
-                                         Target_Val,
-                                         Last_Update))
-is
+package body Commander is
+
+   --  [many declarations moved from the spec]
+
+   --  The commands that may be received in a SETPOINT_GENERIC packet.
+   type Setpoint_Packet_Kind is
+     (Stop,
+      World_Velocity,
+      Z_Distance,
+      cppEmu,  -- emulation of CPPM channels - ?
+      Alt_Hold,
+      Hover,
+      Full_State,
+      Position)
+   with Size => 8;
+   for Setpoint_Packet_Kind use
+     (Stop           => 0,
+      World_Velocity => 1,
+      Z_Distance     => 2,
+      cppEmu         => 3,
+      Alt_Hold       => 4,
+      Hover          => 5,
+      Full_State     => 6,
+      Position       => 7);
+
+   --  Type used to represent different commands
+   --  received in a CRTP packet sent from the client.
+   type CRTP_Values is record
+      Roll   : Types.T_Degrees := 0.0;
+      Pitch  : Types.T_Degrees := 0.0;
+      Yaw    : Types.T_Degrees := 0.0;
+      Thrust : Types.T_Uint16 := 0;
+   end record;
+   pragma Pack (CRTP_Values);
+
+   --  Global variables and constants
+
+   COMMANDER_WDT_TIMEOUT_STABILIZE : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (500);
+   COMMANDER_WDT_TIMEOUT_SHUTDOWN  : constant Ada.Real_Time.Time_Span
+     := Ada.Real_Time.Milliseconds (1000);
+
+   MIN_THRUST        : constant := 1000; pragma Unreferenced (MIN_THRUST);
+   MAX_THRUST        : constant := 60_000;
+   ALT_HOLD_THRUST_F : constant := 32_767.0;
+
+   Is_Init           : Boolean := False;
+   Is_Inactive       : Boolean := True; pragma Unreferenced (Is_Inactive);
+   Alt_Hold_Mode     : Boolean := False;
+   Alt_Hold_Mode_Old : Boolean := False;
+   Thrust_Locked     : Boolean := True;
+   Side              : Boolean := False;
+
+   --  Container for the commander values received via CRTP.
+   Target_Val : array (Boolean) of CRTP_Values;
+
+   Last_Update : Ada.Real_Time.Time;
+
+   --  Procedures and functions
+
+   --  Handler called when a SETPOINT CRTP packet is received in the
+   --  commander port queue.
+   procedure CRTP_Setpoint_Handler (Packet : CRTP.Packet);
+
+   --  Handler called when a SETPOINT_GENERIC CRTP packet is received
+   --  in the commander port queue.
+   procedure CRTP_Setpoint_Generic_Handler (Packet : CRTP.Packet);
+
+   --  Reset the watchdog by assigning the Clock current value to Last_Update
+   --  variable.
+   procedure Watchdog_Reset;
+   pragma Inline (Watchdog_Reset);
+
+   --  Get inactivity time since last update.
+   function Get_Inactivity_Time return Ada.Real_Time.Time_Span
+     with
+       Volatile_Function;
+   pragma Inline (Get_Inactivity_Time);
+
+   --  Get Float data from a CRTP Packet.
+   procedure CRTP_Get_Float_Data is new CRTP.Get_Data (Float);
+
+   --  Get T_Uint16 data from a CRTP Packet.
+   procedure CRTP_Get_T_Uint16_Data is new CRTP.Get_Data (Types.T_Uint16);
+
    --  Private procedures and functions
 
    --------------------
@@ -99,15 +177,56 @@ is
       end if;
    end Watchdog;
 
+   ---------------------------
+   -- CRTP_Setpoint_Handler --
+   ---------------------------
+
+   procedure CRTP_Setpoint_Handler (Packet : CRTP.Packet) is
+      Handler  : constant CRTP.Packet_Handler
+        := CRTP.Get_Handler_From_Packet (Packet);
+      use type Types.T_Uint16;
+
+      --  Target_Val is a swing buffer.
+      Target : CRTP_Values renames Target_Val (not Side);
+   begin
+      --  Write the 'other side' of the swing buffer.
+      CRTP_Get_Float_Data (Handler, 1, Target.Roll);
+      CRTP_Get_Float_Data (Handler, 5, Target.Pitch);
+      CRTP_Get_Float_Data (Handler, 9, Target.Yaw);
+      CRTP_Get_T_Uint16_Data (Handler, 13, Target.Thrust);
+      --  Swap sides.
+      Side := not Side;
+
+      if Target_Val (Side).Thrust = 0 then
+         Thrust_Locked := False;
+      end if;
+
+      Watchdog_Reset;
+   end CRTP_Setpoint_Handler;
+
+   -----------------------------------
+   -- CRTP_Setpoint_Generic_Handler --
+   -----------------------------------
+
+   procedure CRTP_Setpoint_Generic_Handler (Packet : CRTP.Packet) is
+      procedure Get_Setpoint_Packet_Kind
+        is new CRTP.Get_Data (Setpoint_Packet_Kind);
+      Handler : constant CRTP.Packet_Handler
+        := CRTP.Get_Handler_From_Packet (Packet);
+      Kind    : Setpoint_Packet_Kind;
+   begin
+      Get_Setpoint_Packet_Kind (Handler, 1, Kind);
+      Console.Put_Line ("Received Generic Setpoint kind: " & Kind'Image);
+      Watchdog_Reset;
+   end CRTP_Setpoint_Generic_Handler;
+
    --  Public procedures and functions
 
    ----------
    -- Init --
    ----------
 
-   procedure Init
-     with SPARK_Mode => Off
-   is
+   procedure Init is
    begin
       if Is_Init then
          return;
@@ -115,7 +234,9 @@ is
 
       Last_Update := Ada.Real_Time.Clock;
       CRTP.Register_Callback
-        (CRTP.PORT_COMMANDER, CRTP_Handler'Access);
+        (CRTP.PORT_SETPOINT, CRTP_Setpoint_Handler'Access);
+      CRTP.Register_Callback
+        (CRTP.PORT_SETPOINT_GENERIC, CRTP_Setpoint_Generic_Handler'Access);
 
       Is_Init := True;
    end Init;
@@ -128,47 +249,6 @@ is
    begin
       return Is_Init;
    end Test;
-
-   ------------------------------
-   -- Get_Commands_From_Packet --
-   ------------------------------
-
-   function Get_Commands_From_Packet
-     (Packet : CRTP.Packet) return CRTP_Values
-   is
-      Commands     : CRTP_Values;
-      Handler      : CRTP.Packet_Handler;
-      Has_Succeed  : Boolean;
-   begin
-      Handler := CRTP.Get_Handler_From_Packet (Packet);
-
-      pragma Warnings (Off, "unused assignment",
-                       Reason => "Has_Succeed can't be equal to false here");
-      CRTP_Get_Float_Data (Handler, 1, Commands.Roll, Has_Succeed);
-      CRTP_Get_Float_Data (Handler, 5, Commands.Pitch, Has_Succeed);
-      CRTP_Get_Float_Data (Handler, 9, Commands.Yaw, Has_Succeed);
-      CRTP_Get_T_Uint16_Data (Handler, 13, Commands.Thrust, Has_Succeed);
-      pragma Warnings (On, "unused assignment");
-
-      return Commands;
-   end Get_Commands_From_Packet;
-
-   ------------------
-   -- CRTP_Handler --
-   ------------------
-
-   procedure CRTP_Handler (Packet : CRTP.Packet) is
-      use type Types.T_Uint16;
-   begin
-      Side := not Side;
-      Target_Val (Side) := Get_Commands_From_Packet (Packet);
-
-      if Target_Val (Side).Thrust = 0 then
-         Thrust_Locked := False;
-      end if;
-
-      Watchdog_Reset;
-   end CRTP_Handler;
 
    -------------
    -- Get_RPY --

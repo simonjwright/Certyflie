@@ -33,6 +33,8 @@ with CRC;
 with CRTP;
 with Types;
 
+with Console;
+
 package body Parameter is
 
    --  Types, subprograms previously in private part of spec
@@ -149,8 +151,7 @@ package body Parameter is
    procedure Append_Raw_Data_Variable_Name_To_Packet
      (Variable       : Parameter_Variable;
       Group          : Parameter_Group;
-      Packet_Handler : in out CRTP.Packet_Handler;
-      Has_Succeed    : out Boolean);
+      Packet_Handler : in out CRTP.Packet_Handler);
 
    --  Read a parameter.
    procedure Read_Process (Packet : CRTP.Packet);
@@ -336,19 +337,15 @@ package body Parameter is
         (CRTP.PORT_PARAM, Parameter_Channel'Enum_Rep (TOC_CH));
       CRTP_Append_T_Uint8_Data
         (Packet_Handler,
-         Parameter_TOC_Command'Enum_Rep (Command),
-         Has_Succeed);
+         Parameter_TOC_Command'Enum_Rep (Command));
 
       case Command is
          when GET_INFO =>
             CRTP_Append_T_Uint8_Data
               (Packet_Handler,
-               Parameter_Data.Parameter_Variables_Count,
-               Has_Succeed);
+               Parameter_Data.Parameter_Variables_Count);
             CRTP_Append_T_Uint32_Data
-              (Packet_Handler,
-               Database_CRC32,
-               Has_Succeed);
+              (Packet_Handler, Database_CRC32);
 
          when GET_ITEM =>
             declare
@@ -360,9 +357,7 @@ package body Parameter is
             begin
                if Var_ID < Parameter_Data.Parameter_Variables_Count then
                   CRTP_Append_T_Uint8_Data
-                    (Packet_Handler,
-                     Var_ID,
-                     Has_Succeed);
+                    (Packet_Handler, Var_ID);
 
                   Parameter_Var := Parameter_Data.Parameter_Variables
                     (Integer (Var_ID)).all;
@@ -371,13 +366,11 @@ package body Parameter is
 
                   CRTP_Append_Parameter_Variable_Type_Data
                     (Packet_Handler,
-                     Parameter_Var.Parameter_Type,
-                     Has_Succeed);
+                     Parameter_Var.Parameter_Type);
                   Append_Raw_Data_Variable_Name_To_Packet
                     (Parameter_Var,
                      Parameter_Var_Group,
-                     Packet_Handler,
-                     Has_Succeed);
+                     Packet_Handler);
                end if;
             end;
       end case;
@@ -406,8 +399,7 @@ package body Parameter is
    procedure Append_Raw_Data_Variable_Name_To_Packet
      (Variable       : Parameter_Variable;
       Group          : Parameter_Group;
-      Packet_Handler : in out CRTP.Packet_Handler;
-      Has_Succeed    : out Boolean)
+      Packet_Handler : in out CRTP.Packet_Handler)
    is
       subtype Parameter_Complete_Name is
         String (1 .. Variable.Name_Length + Group.Name_Length + 2); -- nulls
@@ -437,9 +429,7 @@ package body Parameter is
       Complete_Name_Raw :=
         Parameter_Complete_Name_To_Parameter_Complete_Name_Raw (Complete_Name);
       CRTP_Append_Parameter_Complete_Name_Raw_Data
-        (Packet_Handler,
-         Complete_Name_Raw,
-         Has_Succeed);
+        (Packet_Handler, Complete_Name_Raw);
    end Append_Raw_Data_Variable_Name_To_Packet;
 
    ------------------
@@ -459,27 +449,33 @@ package body Parameter is
         (CRTP.PORT_PARAM, Parameter_Channel'Enum_Rep (READ_CH));
       if ID >= Parameter_Data.Parameter_Variables_Count then
          --  Invalid
+         Console.Put_Line ("Param.Read: invalid ID" & ID'Image);
          CRTP_Append_T_Uint8_Data
-           (Packet_Handler,
-            Types.T_Uint8'Last,
-            Succeeded);
+           (Packet_Handler, Types.T_Uint8'Last);
          CRTP_Append_T_Uint8_Data
-           (Packet_Handler,
-            ID,
-            Succeeded);
+           (Packet_Handler, ID);
          CRTP_Append_T_Uint8_Data
-           (Packet_Handler,
-            ENOENT,
-            Succeeded);
+           (Packet_Handler, ENOENT);
       else
          CRTP_Append_T_Uint8_Data
-           (Packet_Handler,
-            ID,
-            Succeeded);
+           (Packet_Handler, ID);
          declare
             V : Parameter_Variable
             renames Parameter_Data.Parameter_Variables (Integer (ID)).all;
          begin
+            declare
+               Group : Parameter_Group
+                 renames Parameter_Data.Parameter_Groups (V.Group_ID);
+               Group_Name :  String
+                 renames Group.Name (1 .. Group.Name_Length);
+               Variable_Name : String
+                 renames V.Name (1 .. V.Name_Length);
+            begin
+               Console.Put_Line ("Param.Read "
+                                   & Group_Name
+                                   & "."
+                                   & Variable_Name);
+            end;
             case V.Parameter_Type.Size is
                when One_Byte =>
                   declare
@@ -487,7 +483,9 @@ package body Parameter is
                        (Types.T_Uint8);
                      Variable : Types.T_Uint8 with Address => V.Variable;
                   begin
-                     Append_Data (Packet_Handler, Variable, Succeeded);
+                     Console.Put_Line
+                       ("Param: 8-bit value is " & Variable'Image);
+                     Append_Data (Packet_Handler, Variable);
                   end;
                when Two_Bytes =>
                   declare
@@ -495,7 +493,7 @@ package body Parameter is
                        (Types.T_Uint16);
                      Variable : Types.T_Uint16 with Address => V.Variable;
                   begin
-                     Append_Data (Packet_Handler, Variable, Succeeded);
+                     Append_Data (Packet_Handler, Variable);
                   end;
                when Four_Bytes =>
                   declare
@@ -503,7 +501,7 @@ package body Parameter is
                        (Types.T_Uint32);
                      Variable : Types.T_Uint32 with Address => V.Variable;
                   begin
-                     Append_Data (Packet_Handler, Variable, Succeeded);
+                     Append_Data (Packet_Handler, Variable);
                   end;
                when Eight_Bytes =>
                   declare
@@ -511,7 +509,7 @@ package body Parameter is
                        (Types.T_Uint64);
                      Variable : Types.T_Uint64 with Address => V.Variable;
                   begin
-                     Append_Data (Packet_Handler, Variable, Succeeded);
+                     Append_Data (Packet_Handler, Variable);
                   end;
             end case;
          end;

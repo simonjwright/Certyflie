@@ -66,7 +66,7 @@ package body UART_Syslink is
    Tx_Channel : constant STM32.DMA.DMA_Channel_Selector := STM32.DMA.Channel_5;
    Tx_Stream : constant STM32.DMA.DMA_Stream_Selector := STM32.DMA.Stream_6;
 
-   UART_RX_QUEUE_SIZE   : constant := 40;
+   UART_RX_QUEUE_SIZE   : constant := 256;
    --  UART_DATA_TIMEOUT_MS : constant Time_Span :=  Milliseconds (1_000);
 
    --  Procedures and functions

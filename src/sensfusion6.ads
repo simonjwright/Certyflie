@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Certyflie                                   --
 --                                                                          --
---                     Copyright (C) 2015-2016, AdaCore                     --
+--                     Copyright (C) 2015-2020, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -30,11 +30,7 @@
 with IMU;
 with Types;
 
-package SensFusion6
-with SPARK_Mode,
-  Abstract_State => (SensFusion6_State),
-  Initializes    => (SensFusion6_State)
-is
+package SensFusion6 is
 
    --  Procedures and functions
 
@@ -57,6 +53,11 @@ is
       Mz : IMU.T_Mag;
       Dt : Types.T_Delta_Time);
 
+   procedure Get_Quaternion (Qx : out Types.T_Quaternion;
+                             Qy : out Types.T_Quaternion;
+                             Qz : out Types.T_Quaternion;
+                             Qw : out Types.T_Quaternion);
+
    --  Get Euler roll, pitch and yaw from the current quaternions.
    --  Must be called after a call to 'Update_Q' to have
    --  the latest angles.
@@ -75,17 +76,13 @@ private
 
    --  Global variables and constants
 
-   Is_Init : Boolean := False with Part_Of => SensFusion6_State;
+   Is_Init : Boolean := False;
 
-   Q0 : Types.T_Quaternion := 1.0
-     with Part_Of => SensFusion6_State;
-   Q1 : Types.T_Quaternion := 0.0
-     with Part_Of => SensFusion6_State;
-   Q2 : Types.T_Quaternion := 0.0
-     with Part_Of => SensFusion6_State;
    --  quaternion of sensor frame relative to auxiliary frame
-   Q3 : Types.T_Quaternion := 0.0
-     with Part_Of => SensFusion6_State;
+   Q0 : Types.T_Quaternion := 1.0;
+   Q1 : Types.T_Quaternion := 0.0;
+   Q2 : Types.T_Quaternion := 0.0;
+   Q3 : Types.T_Quaternion := 0.0;
 
    --   Implementation of Madgwick's IMU and AHRS algorithms.
    --   See: http:--  www.x-io.co.uk/open-source-ahrs-with-x-imu
@@ -96,7 +93,7 @@ private
 
    --  Global variables and constants
 
-   MAX_INTEGRAL_ERROR : constant := 100.0;
-   MAX_RATE_CHANGE    : constant := 1_000_000.0;
+   MAX_INTEGRAL_ERROR : constant := 100.0;        -- not used in Madgwick
+   MAX_RATE_CHANGE    : constant := 1_000_000.0;  -- used in both
 
 end SensFusion6;

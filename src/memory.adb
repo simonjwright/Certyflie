@@ -117,17 +117,14 @@ package body Memory is
         (CRTP.PORT_MEM, Memory_Channel'Enum_Rep (SETTINGS_CH));
       CRTP_Append_T_Uint8_Data
         (Packet_Handler,
-         Memory_Command'Enum_Rep (Command),
-         Has_Succeed);
+         Memory_Command'Enum_Rep (Command));
 
       case Command is
          when CMD_GET_NBR =>
             --  TODO: for now we just send 0 instead of the real number
             --  of One Wire memories + EEPROM memory.
             CRTP_Append_T_Uint8_Data
-              (Packet_Handler,
-               0,
-               Has_Succeed);
+              (Packet_Handler, 0);
             CRTP.Send_Packet
               (CRTP.Get_Packet_From_Handler (Packet_Handler),
                Has_Succeed);

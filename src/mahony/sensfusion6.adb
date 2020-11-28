@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Certyflie                                   --
 --                                                                          --
---                     Copyright (C) 2015-2016, AdaCore                     --
+--                     Copyright (C) 2015-2020, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -27,24 +27,14 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
+--  This is the MAHONEY version of this unit.
+
 with Ada.Numerics; use Ada.Numerics;
 
 with Maths;        use Maths;
 with Safety;
 
-package body SensFusion6
-with SPARK_Mode,
-  Refined_State => (SensFusion6_State => (Is_Init,
-                                          Q0,
-                                          Q1,
-                                          Q2,
-                                          Q3,
-                                          Two_Kp,
-                                          Two_Ki,
-                                          Integral_FBx,
-                                          Integral_FBy,
-                                          Integral_FBz))
-is
+package body SensFusion6 is
 
    Two_Kp : constant Float := 2.0 * 0.4;
    --  2 * proportional gain (Kp)
@@ -160,7 +150,7 @@ is
    begin
       Length := Sqrtf (Mx * Mx + My * My + Mz * Mz);
 
-      --  Use IMU algorighm if magnitometer measurement is invalid
+      --  Use IMU algorighm if magnetometer measurement is invalid
       if Length = 0.0 then
          Mahony_Update_Q (Gx, Gy, Gz, Ax, Ay, Az, Dt);
 
@@ -439,6 +429,21 @@ is
          Mx, My, Mz,
          Dt);
    end Update_Q;
+
+   --------------------
+   -- Get_Quaternion --
+   --------------------
+
+   procedure Get_Quaternion (Qx : out Types.T_Quaternion;
+                             Qy : out Types.T_Quaternion;
+                             Qz : out Types.T_Quaternion;
+                             Qw : out Types.T_Quaternion) is
+   begin
+      Qx := Q1;
+      Qy := Q2;
+      Qz := Q2;
+      Qw := Q0;  -- That's what the C code does, but see stabilizer_types.h:66
+   end Get_Quaternion;
 
    -------------------
    -- Get_Euler_RPY --

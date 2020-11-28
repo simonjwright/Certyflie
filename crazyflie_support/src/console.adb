@@ -29,6 +29,7 @@
 ------------------------------------------------------------------------------
 
 with CRTP;
+with Ada.Real_Time;
 
 package body Console is
 
@@ -41,7 +42,7 @@ package body Console is
       procedure Put (C : Character);
       procedure Flush;
    private
-      Buffer : String (1 .. 256);
+      Buffer : String (1 .. 2048);
       Last   : Natural := 0;
       Not_Empty  : Boolean := False; -- Ravenscar requires simple barrier
    end Message_Buffer;
@@ -140,7 +141,7 @@ package body Console is
 
    task body Task_Type is
       procedure Append_Character
-        is new CRTP.Append_Data (Character);
+        is new CRTP.Append_Data_If_Room (Character);
       procedure Send_Message;
 
       Message_To_Print : CRTP.Packet_Handler
@@ -148,16 +149,18 @@ package body Console is
 
       procedure Send_Message is
          Succeeded : Boolean;
+         use type Ada.Real_Time.Time;
       begin
-         CRTP.Send_Packet
-           (CRTP.Get_Packet_From_Handler (Message_To_Print), Succeeded);
-         if not Succeeded then
-            raise Program_Error with "message not sent";
-         end if;
+         loop
+            CRTP.Send_Packet
+              (CRTP.Get_Packet_From_Handler (Message_To_Print), Succeeded);
+            exit when Succeeded;
+            delay until Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (10);
+         end loop;
          CRTP.Reset_Handler (Message_To_Print);
       end Send_Message;
 
-      Buff : String (1 .. 128);
+      Buff : String (1 .. CRTP.MAX_DATA_SIZE);
       Last : Positive;
    begin
       loop

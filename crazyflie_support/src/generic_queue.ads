@@ -43,15 +43,18 @@ package Generic_Queue is
    --  Enqueue an item in the queue, if the queue is not full.
    procedure Enqueue
      (Queue : in out T_Queue;
-      Item  : T_Element);
+      Item  : T_Element)
+   with Pre => not Is_Full (Queue);
 
    --  Dequeue an item from the queue, if the queue is not empty.
    procedure Dequeue
      (Queue : in out T_Queue;
-      Item  : out T_Element);
+      Item  : out T_Element)
+   with Pre => not Is_Empty (Queue);
 
    --  Reset the queue by setting the count to 0.
-   procedure Reset (Queue : in out T_Queue);
+   procedure Reset (Queue : in out T_Queue)
+   with Post => Is_Empty (Queue);
 
    --  Return True if the queue is empty, False otherwise.
    function Is_Empty (Queue : T_Queue) return Boolean;

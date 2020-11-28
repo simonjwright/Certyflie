@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2017, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -34,10 +35,7 @@ pragma Elaborate (Link_Interface);
 
 with LEDS;
 
-package body CRTP
-with Refined_State => (CRTP_State => (Dropped_Packets,
-                                      Connected))
-is
+package body CRTP is
 
    ------------------
    -- Tx_Task_Type --
@@ -128,15 +126,10 @@ is
    procedure Get_Data
      (Handler     : Packet_Handler;
       Index       : Positive;
-      Data        : in out T_Data;
-      Has_Succeed : out Boolean)
+      Data        : out T_Data)
    is
       Data_Size : constant Natural := (T_Data'Size + 7) / 8;
       subtype Byte_Array_Data is Types.T_Uint8_Array (1 .. Data_Size);
-
-      ------------------------
-      -- Byte_Array_To_Data --
-      ------------------------
 
       function Byte_Array_To_Data is new Ada.Unchecked_Conversion
         (Byte_Array_Data, T_Data);
@@ -146,9 +139,8 @@ is
       then
          Data := Byte_Array_To_Data
            (Handler.Pkt.Data_1 (Index .. Index + Data_Size - 1));
-         Has_Succeed := True;
       else
-         Has_Succeed := False;
+         raise Constraint_Error with "CRTP.Get_Data: Index out of range";
       end if;
    end Get_Data;
 
@@ -158,16 +150,11 @@ is
 
    procedure Append_Data
      (Handler : in out Packet_Handler;
-      Data           : T_Data;
-      Has_Succeed     : out Boolean)
+      Data           : T_Data)
    is
       Data_Size : constant Natural := (T_Data'Size + 7) / 8;
 
       subtype Byte_Array_Data is Types.T_Uint8_Array (1 .. Data_Size);
-
-      ------------------------
-      -- Data_To_Byte_Array --
-      ------------------------
 
       function Data_To_Byte_Array is new Ada.Unchecked_Conversion
         (T_Data, Byte_Array_Data);
@@ -181,11 +168,41 @@ is
 
          Handler.Pkt.Size := Handler.Pkt.Size + Types.T_Uint8 (Data_Size);
          Handler.Index := Handler.Index + Data_Size;
-         Has_Succeed := True;
       else
-         Has_Succeed := False;
+         raise Constraint_Error with "CRTP.Append_Data: Inde out of range";
       end if;
    end Append_Data;
+
+   -------------------------
+   -- Append_Data_If_Room --
+   -------------------------
+
+   procedure Append_Data_If_Room
+     (Handler : in out Packet_Handler;
+      Data    :        T_Data;
+      Success :    out Boolean)
+   is
+      Data_Size : constant Natural := (T_Data'Size + 7) / 8;
+
+      subtype Byte_Array_Data is Types.T_Uint8_Array (1 .. Data_Size);
+
+      function Data_To_Byte_Array is new Ada.Unchecked_Conversion
+        (T_Data, Byte_Array_Data);
+
+      use type Types.T_Uint8;
+   begin
+      if Handler.Index + Data_Size - 1 <= Handler.Pkt.Data_1'Last then
+         Handler.Pkt.Data_1
+           (Handler.Index .. Handler.Index + Data_Size - 1) :=
+             Data_To_Byte_Array (Data);
+
+         Handler.Pkt.Size := Handler.Pkt.Size + Types.T_Uint8 (Data_Size);
+         Handler.Index := Handler.Index + Data_Size;
+         Success := True;
+      else
+         Success := False;
+      end if;
+   end Append_Data_If_Room;
 
    -------------------
    -- Reset_Handler --

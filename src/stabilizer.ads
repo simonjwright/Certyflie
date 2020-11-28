@@ -42,6 +42,9 @@ package Stabilizer is
 
    --  Main function of the stabilization system. Get the commands, give them
    --  to the PIDs, and get the output to control the actuators.
+   --
+   --  The two counters are passed here to avoid having to provide static
+   --  variables in the body (not a good reason, IMO)
    procedure Control_Loop
      (Attitude_Update_Counter : in out Types.T_Uint32;
       Alt_Hold_Update_Counter : in out Types.T_Uint32);

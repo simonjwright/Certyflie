@@ -44,7 +44,7 @@ with PMW3901;
 with VL53L0X;
 
 with Estimators;
---  with Parameter;
+with Parameter;
 --  with Log;
 
 with Console;
@@ -78,7 +78,7 @@ package body Flow_Deck is
      Pin = STM32.Board.EXT_CS3;
 
    --  procedure Init_Logging;
-   --  procedure Init_Parameters;
+   procedure Init_Parameters;
 
    procedure Init_Flow_Sensor (Success : out Boolean);
    procedure Init_ToF_Sensor (Success : out Boolean);
@@ -97,7 +97,7 @@ package body Flow_Deck is
    procedure Init is
    begin
       --  Init_Logging;
-      --  Init_Parameters;
+      Init_Parameters;
       Init_Flow_Sensor (Flow_Sensor_Initialized);
       Init_ToF_Sensor (ToF_Sensor_Initialized);
 
@@ -355,46 +355,87 @@ package body Flow_Deck is
    --     pragma Assert (Success, "coudn't add log 'motion.deltaY'");
    --  end Init_Logging;
 
-   --  procedure Init_Parameters is
-   --     Motion_Group_ID : Natural;
-   --     Deck_Group_ID : Natural;
-   --     Success : Boolean;
-   --     use Parameter;
-   --  begin
-   --     Create_Parameter_Group ("motion",
-   --                             Group_ID => Motion_Group_ID,
-   --                             Has_Succeed => Success);
-   --     pragma Assert (Success, "coudn't create 'motion' parameter group");
-   --     Append_Parameter_Variable_To_Group
-   --       (Motion_Group_ID,
-   --        Name => "disable",
-   --        Parameter_Type => Parameter_Variable_Type'
-   --          (Size => One_Byte,
-   --           Floating => False,
-   --           Signed => False,
-   --           Read_Only => False,
-   --           others => <>),
-   --        Variable => Motion_Disabled'Address,
-   --        Has_Succeed => Success);
-   --     pragma Assert (Success,
-   --                    "couldn't create 'motion.disable' parameter");
+   Dummy_False_Parameter : constant Boolean := False with Convention => C;
+   --  for Decks we don't have: bcFlow2, bcZRanger2.
 
-   --     Create_Parameter_Group ("deck",
-   --                             Group_ID => Deck_Group_ID,
-   --                             Has_Succeed => Success);
-   --     pragma Assert (Success, "coudn't create 'deck' parameter group");
-   --     Append_Parameter_Variable_To_Group
-   --       (Deck_Group_ID,
-   --        Name => "bcFlow",
-   --        Parameter_Type => Parameter_Variable_Type'
-   --          (Size => One_Byte,
-   --           Floating => False,
-   --           Signed => False,
-   --           Read_Only => True,
-   --           others => <>),
-   --        Variable => ToF_Sensor_Initialized'Address,
-   --        Has_Succeed => Success);
-   --     pragma Assert (Success, "couldn't create 'deck.bcFlow' parameter");
-   --  end Init_Parameters;
+   procedure Init_Parameters is
+      --  Motion_Group_ID : Natural;
+      Deck_Group_ID : Natural;
+      Success : Boolean;
+      use Parameter;
+   begin
+      --  Create_Parameter_Group ("motion",
+      --                          Group_ID => Motion_Group_ID,
+      --                          Has_Succeed => Success);
+      --  pragma Assert (Success, "coudn't create 'motion' parameter group");
+      --  Append_Parameter_Variable_To_Group
+      --    (Motion_Group_ID,
+      --     Name => "disable",
+      --     Parameter_Type => Parameter_Variable_Type'
+      --       (Size => One_Byte,
+      --        Floating => False,
+      --        Signed => False,
+      --        Read_Only => False,
+      --        others => <>),
+      --     Variable => Motion_Disabled'Address,
+      --     Has_Succeed => Success);
+      --  pragma Assert (Success,
+      --                 "couldn't create 'motion.disable' parameter");
+
+      Create_Parameter_Group ("deck",
+                              Group_ID => Deck_Group_ID,
+                              Has_Succeed => Success);
+      pragma Assert (Success, "coudn't create 'deck' parameter group");
+
+      Append_Parameter_Variable_To_Group
+        (Deck_Group_ID,
+         Name => "bcFlow",
+         Parameter_Type => Parameter_Variable_Type'
+           (Size => One_Byte,
+            Floating => False,
+            Signed => False,
+            Read_Only => True,
+            others => <>),
+         Variable => Flow_Sensor_Initialized'Address,
+         Has_Succeed => Success);
+      pragma Assert (Success, "couldn't create 'deck.bcFlow' parameter");
+      Append_Parameter_Variable_To_Group
+        (Deck_Group_ID,
+         Name => "bcFlow2",
+         Parameter_Type => Parameter_Variable_Type'
+           (Size => One_Byte,
+            Floating => False,
+            Signed => False,
+            Read_Only => True,
+            others => <>),
+         Variable => Dummy_False_Parameter'Address,
+         Has_Succeed => Success);
+      pragma Assert (Success, "couldn't create 'deck.bcFlow2' parameter");
+
+      Append_Parameter_Variable_To_Group
+        (Deck_Group_ID,
+         Name => "bcZRanger",
+         Parameter_Type => Parameter_Variable_Type'
+           (Size => One_Byte,
+            Floating => False,
+            Signed => False,
+            Read_Only => True,
+            others => <>),
+         Variable => ToF_Sensor_Initialized'Address,
+         Has_Succeed => Success);
+      pragma Assert (Success, "couldn't create 'deck.bcZRanger' parameter");
+      Append_Parameter_Variable_To_Group
+        (Deck_Group_ID,
+         Name => "bcZRanger2",
+         Parameter_Type => Parameter_Variable_Type'
+           (Size => One_Byte,
+            Floating => False,
+            Signed => False,
+            Read_Only => True,
+            others => <>),
+         Variable => Dummy_False_Parameter'Address,
+         Has_Succeed => Success);
+      pragma Assert (Success, "couldn't create 'deck.bcZRanger2' parameter");
+   end Init_Parameters;
 
 end Flow_Deck;

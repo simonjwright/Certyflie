@@ -313,8 +313,7 @@ package body Log is
    procedure Append_Raw_Data_Variable_Name_To_Packet
      (Group_Name     : String;
       Variable_Name  : String;
-      Packet_Handler : in out CRTP.Packet_Handler;
-      Has_Succeed    : out Boolean);
+      Packet_Handler : in out CRTP.Packet_Handler);
 
    --  Public procedures and functions
 
@@ -518,28 +517,20 @@ package body Log is
         (CRTP.PORT_LOG, Channel'Enum_Rep (TOC_CH));
       CRTP_Append_T_Uint8_Data
         (Packet_Handler,
-         TOC_Command'Enum_Rep (Command),
-         Has_Succeed);
+         TOC_Command'Enum_Rep (Command));
 
       case Command is
          when CMD_GET_INFO =>
             CRTP_Append_T_Uint8_Data
               (Packet_Handler,
-               Types.T_Uint8 (Data.Variables.Length),
-               Has_Succeed);
+               Types.T_Uint8 (Data.Variables.Length));
 
             CRTP_Append_T_Uint32_Data
-              (Packet_Handler,
-               Data_CRC32,
-               Has_Succeed);
+              (Packet_Handler, Data_CRC32);
             CRTP_Append_T_Uint8_Data
-              (Packet_Handler,
-               MAX_BLOCKS,
-               Has_Succeed);
+              (Packet_Handler, MAX_BLOCKS);
             CRTP_Append_T_Uint8_Data
-              (Packet_Handler,
-               MAX_OPS,
-               Has_Succeed);
+              (Packet_Handler, MAX_OPS);
 
          when CMD_GET_ITEM =>
             declare
@@ -549,8 +540,7 @@ package body Log is
                if Var_ID < Data.Variables.Length then
                   CRTP_Append_T_Uint8_Data
                     (Packet_Handler,
-                     Types.T_Uint8 (Var_ID),
-                     Has_Succeed);
+                     Types.T_Uint8 (Var_ID));
 
                   declare
                      Var : Variable renames
@@ -561,13 +551,11 @@ package body Log is
                   begin
                      CRTP_Append_T_Uint8_Data
                        (Packet_Handler,
-                        Variable_Type'Enum_Rep (Var.Typ),
-                        Has_Succeed);
+                        Variable_Type'Enum_Rep (Var.Typ));
                      Append_Raw_Data_Variable_Name_To_Packet
                        (+Grp.Nam,
                         +Var.Nam,
-                        Packet_Handler,
-                        Has_Succeed);
+                        Packet_Handler);
                   end;
                else
                   --  Return the packet with no content.
@@ -876,8 +864,7 @@ package body Log is
    procedure Append_Raw_Data_Variable_Name_To_Packet
      (Group_Name     : String;
       Variable_Name  : String;
-      Packet_Handler : in out CRTP.Packet_Handler;
-      Has_Succeed    : out Boolean)
+      Packet_Handler : in out CRTP.Packet_Handler)
    is
       subtype Complete_Name is
         String (1 .. Group_Name'Length + 1 + Variable_Name'Length + 1);
@@ -885,16 +872,8 @@ package body Log is
       subtype Complete_Name_Raw is
         Types.T_Uint8_Array (Complete_Name'Range);
 
-      ------------------------------------------------
-      -- Complete_Name_To_Complete_Name_Raw --
-      ------------------------------------------------
-
       function Complete_Name_To_Complete_Name_Raw is new
         Ada.Unchecked_Conversion (Complete_Name, Complete_Name_Raw);
-
-      --------------------------------------------
-      -- CRTP_Append_Complete_Name_Raw_Data --
-      --------------------------------------------
 
       procedure CRTP_Append_Complete_Name_Raw_Data is new
         CRTP.Append_Data (Complete_Name_Raw);
@@ -904,9 +883,7 @@ package body Log is
           (Group_Name & ASCII.NUL & Variable_Name & ASCII.NUL);
    begin
       CRTP_Append_Complete_Name_Raw_Data
-        (Packet_Handler,
-         Raw_Complete_Name,
-         Has_Succeed);
+        (Packet_Handler, Raw_Complete_Name);
    end Append_Raw_Data_Variable_Name_To_Packet;
 
    ----------------------------
@@ -1043,12 +1020,10 @@ package body Log is
 
             --  Add block ID to the packet.
             CRTP_Append_T_Uint8_Data (Handler     => Packet_Handler,
-                                      Data        => Client_Block_ID,
-                                      Has_Succeed => Has_Succeed);
+                                      Data        => Client_Block_ID);
             --  Add a timestamp to the packet
             CRTP_Append_Time_Stamp_Data (Handler     => Packet_Handler,
-                                         Data        => Time_Stmp,
-                                         Has_Succeed => Has_Succeed);
+                                         Data        => Time_Stmp);
 
             --  Add all the variables data in the packet
             for J in 0 .. Blocks (Blk_ID).Operations.Length - 1 loop
@@ -1068,8 +1043,7 @@ package body Log is
                         begin
                            CRTP_Append_T_Uint8_Data
                              (Handler     => Packet_Handler,
-                              Data        => Value,
-                              Has_Succeed => Has_Succeed);
+                              Data        => Value);
                         end;
                      when UINT16 =>
                         declare
@@ -1078,8 +1052,7 @@ package body Log is
                         begin
                            CRTP_Append_T_Uint16_Data
                              (Handler     => Packet_Handler,
-                              Data        => Value,
-                              Has_Succeed => Has_Succeed);
+                              Data        => Value);
                         end;
                      when UINT32 =>
                         declare
@@ -1088,8 +1061,7 @@ package body Log is
                         begin
                            CRTP_Append_T_Uint32_Data
                              (Handler     => Packet_Handler,
-                              Data        => Value,
-                              Has_Succeed => Has_Succeed);
+                              Data        => Value);
                         end;
                      when INT8 =>
                         declare
@@ -1098,8 +1070,7 @@ package body Log is
                         begin
                            CRTP_Append_T_Int8_Data
                              (Handler      => Packet_Handler,
-                              Data        => Value,
-                              Has_Succeed => Has_Succeed);
+                              Data        => Value);
                         end;
                      when INT16 =>
                         declare
@@ -1108,8 +1079,7 @@ package body Log is
                         begin
                            CRTP_Append_T_Int16_Data
                              (Handler     => Packet_Handler,
-                              Data        => Value,
-                              Has_Succeed => Has_Succeed);
+                              Data        => Value);
                         end;
                      when INT32 =>
                         declare
@@ -1118,8 +1088,7 @@ package body Log is
                         begin
                            CRTP_Append_T_Int32_Data
                              (Handler     => Packet_Handler,
-                              Data        => Value,
-                              Has_Succeed => Has_Succeed);
+                              Data        => Value);
                         end;
                      when FLOAT =>
                         declare
@@ -1128,8 +1097,7 @@ package body Log is
                         begin
                            CRTP_Append_Float_Data
                              (Handler     => Packet_Handler,
-                              Data        => Value,
-                              Has_Succeed => Has_Succeed);
+                              Data        => Value);
                         end;
                   end case;
                end;

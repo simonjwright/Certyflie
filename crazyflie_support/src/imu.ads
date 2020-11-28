@@ -93,10 +93,10 @@ package IMU is
 
    --  Global variables and constants
 
-   UPDATE_FREQ  : constant := 500.0;
+   UPDATE_FREQ  : constant := 250.0;
    UPDATE_DT    : constant := 1.0 / UPDATE_FREQ;
    UPDATE_DT_MS : constant Ada.Real_Time.Time_Span
-     := Ada.Real_Time.Milliseconds (2);
+     := Ada.Real_Time.Milliseconds (4);
 
    --  Number of samples used for bias calculation
    NBR_OF_BIAS_SAMPLES      : constant := 1024;

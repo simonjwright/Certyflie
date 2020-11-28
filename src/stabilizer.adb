@@ -31,6 +31,8 @@
 --  Previously in the spec
 with Commander;
 with Controller;
+with Estimators;
+with Estimators.Original;
 with Free_Fall;
 with IMU;
 with Motors;
@@ -133,17 +135,25 @@ is
 
    Is_Init : Boolean := False;
 
+   Estimator : Estimators.Original.Original_Estimator;
+
+   --  Sensor info (accelerometer, gyro, magnetometer, barometer).
+   Sensor_Data : Estimators.Sensor_Data;
+
+   --  State info (attitude, position, velocity, acceleration).
+   State_Data : Estimators.State_Data;
+
    --  IMU outputs. The IMU is composed of an accelerometer, a gyroscope
-   --  and a magnetometer (notused yet).
-   Gyro : IMU.Gyroscope_Data     := (0.0, 0.0, 0.0);
-   Acc  : IMU.Accelerometer_Data := (0.0, 0.0, 0.0);
-   Mag  : IMU.Magnetometer_Data  := (0.0, 0.0, 0.0);
+   --  and a magnetometer.
+   --  Gyro : IMU.Gyroscope_Data     := (0.0, 0.0, 0.0);
+   --  Acc  : IMU.Accelerometer_Data := (0.0, 0.0, 0.0);
+   --  Mag  : IMU.Magnetometer_Data  := (0.0, 0.0, 0.0);
 
    --  Actual angles. These angles are calculated by fusing
    --  accelerometer and gyro data in the Sensfusion algorithms.
-   Euler_Roll_Actual   : Types.T_Degrees := 0.0;
-   Euler_Pitch_Actual  : Types.T_Degrees := 0.0;
-   Euler_Yaw_Actual    : Types.T_Degrees := 0.0;
+   --  Euler_Roll_Actual   : Types.T_Degrees := 0.0;
+   --  Euler_Pitch_Actual  : Types.T_Degrees := 0.0;
+   --  Euler_Yaw_Actual    : Types.T_Degrees := 0.0;
 
    --  Desired angles. Obtained directly from the pilot.
    Euler_Roll_Desired  : Types.T_Degrees := 0.0;
@@ -312,17 +322,17 @@ is
       Log.Add_Variable (Group    => "stabilizer",
                         Name     => "roll",
                         Typ      => Log.FLOAT,
-                        Variable => Euler_Roll_Actual'Address,
+                        Variable => State_Data.Att.Roll'Address,
                         Success  => Dummy);
       Log.Add_Variable (Group    => "stabilizer",
                         Name     => "pitch",
                         Typ      => Log.FLOAT,
-                        Variable => Euler_Pitch_Actual'Address,
+                        Variable => State_Data.Att.Pitch'Address,
                         Success  => Dummy);
       Log.Add_Variable (Group    => "stabilizer",
                         Name     => "yaw",
                         Typ      => Log.FLOAT,
-                        Variable => Euler_Yaw_Actual'Address,
+                        Variable => State_Data.Att.Yaw'Address,
                         Success  => Dummy);
       Log.Add_Variable (Group    => "stabilizer",
                         Name     => "thrust",
@@ -344,6 +354,22 @@ is
                         Name     => "pressure",
                         Typ      => Log.FLOAT,
                         Variable => Pressure'Address,
+                        Success  => Dummy);
+
+      Log.Add_Variable (Group    => "stateEstimate",
+                        Name     => "x",
+                        Typ      => Log.FLOAT,
+                        Variable => State_Data.Pos.X'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "stateEstimate",
+                        Name     => "y",
+                        Typ      => Log.FLOAT,
+                        Variable => State_Data.Pos.Y'Address,
+                        Success  => Dummy);
+      Log.Add_Variable (Group    => "stateEstimate",
+                        Name     => "z",
+                        Typ      => Log.FLOAT,
+                        Variable => State_Data.Pos.Z'Address,
                         Success  => Dummy);
    end Init_Logging;
 
@@ -411,30 +437,29 @@ is
 
    procedure Update_Attitude is
    begin
-      SensFusion6.Update_Q (Gyro.X, Gyro.Y, Gyro.Z,
-                            Acc.X, Acc.Y, Acc.Z,
-                            Mag.X, Mag.Y, Mag.Z,
-                            FUSION_UPDATE_DT);
-      --  Get Euler angles
-      SensFusion6.Get_Euler_RPY (Euler_Roll_Actual,
-                                 Euler_Pitch_Actual,
-                                 Euler_Yaw_Actual);
+      Estimator.Estimate
+        (State => State_Data, Sensors => Sensor_Data, Tick => 0);
+
       --  Vertical acceleration without gravity
-      Acc_WZ := SensFusion6.Get_AccZ_Without_Gravity (Acc.X, Acc.Y, Acc.Z);
-      Acc_MAG := (Acc.X * Acc.X) + (Acc.Y * Acc.Y) + (Acc.Z * Acc.Z);
+      Acc_WZ := SensFusion6.Get_AccZ_Without_Gravity
+        (Ax => Sensor_Data.Acc.X,
+         Ay => Sensor_Data.Acc.Y,
+         Az => Sensor_Data.Acc.Z);
+      --  Magnitude of acceleration: not used
+      --  Acc_MAG := (Acc.X * Acc.X) + (Acc.Y * Acc.Y) + (Acc.Z * Acc.Z);
 
       --  Estimate vertical speed from acceleration and Saturate
       --  it within a limit
       V_Speed := Safety.Saturate
         (V_Speed
-         + Safety.Dead_Band (Acc_WZ, V_Acc_Deadband) * FUSION_UPDATE_DT,
+           + Safety.Dead_Band (Acc_WZ, V_Acc_Deadband) * FUSION_UPDATE_DT,
          -V_Speed_Limit,
          V_Speed_Limit);
 
       --  Get the rate commands from the roll, pitch, yaw attitude PID's
-      Controller.Correct_Attitude_Pid (Euler_Roll_Actual,
-                                       Euler_Pitch_Actual,
-                                       Euler_Yaw_Actual,
+      Controller.Correct_Attitude_Pid (State_Data.Att.Roll,
+                                       State_Data.Att.Pitch,
+                                       State_Data.Att.Yaw,
                                        Euler_Roll_Desired,
                                        Euler_Pitch_Desired,
                                        -Euler_Yaw_Desired);
@@ -463,7 +488,9 @@ is
          Yaw_Rate_Desired := -Euler_Yaw_Desired;
       end if;
 
-      Controller.Correct_Rate_PID (Gyro.X, -Gyro.Y, Gyro.Z,
+      Controller.Correct_Rate_PID (Sensor_Data.Gyro.X,
+                                   -Sensor_Data.Gyro.Y,
+                                   Sensor_Data.Gyro.Z,
                                    Roll_Rate_Desired,
                                    Pitch_Rate_Desired,
                                    Yaw_Rate_Desired);
@@ -567,7 +594,7 @@ is
 
          Baro_V_Speed := Safety.Saturate
            ((1.0 - Alt_Pid_Alpha) * ((V_Speed_Acc * V_Speed_Acc_Fac)
-                                     + (V_Speed_ASL * V_Speed_ASL_Fac)),
+                                       + (V_Speed_ASL * V_Speed_ASL_Fac)),
             Types.T_Speed'First,
             Types.T_Speed'Last);
          Alt_Hold_PID_Out := Safety.Saturate
@@ -584,7 +611,7 @@ is
            (Alt_Hold_PID_Val * Alt_Pid_Asl_Fac);
          Actuator_Thrust := Safety.Saturate
            (Limit_Thrust (Types.T_Int32 (Raw_Thrust)
-                          + Types.T_Int32 (Alt_Hold_Base_Thrust)),
+                            + Types.T_Int32 (Alt_Hold_Base_Thrust)),
             Alt_Hold_Min_Thrust,
             Alt_Hold_Max_Thrust);
       end if;
@@ -631,8 +658,9 @@ is
       use type Types.T_Uint16;
       use type Types.T_Uint32;
    begin
-      --  Magnetometer not used for the moment
-      IMU.Read_9 (Gyro, Acc, Mag);
+      --  Original code does this every other call (i.e. 250 Hz, calls
+      --  at 500 Hz).
+      Update_Attitude;
 
       --  Increment the counters
       Attitude_Update_Counter := Attitude_Update_Counter + 1;
@@ -640,7 +668,10 @@ is
 
       --  Check if the drone is in Free fall or has landed.
       --  This check is enabled by default, but can be disabled
-      Free_Fall.FF_Check_Event (Acc);
+      Free_Fall.FF_Check_Event (IMU.Accelerometer_Data'
+                                  (X => Sensor_Data.Acc.X,
+                                   Y => Sensor_Data.Acc.Y,
+                                   Z => Sensor_Data.Acc.Z));
 
       --  Get commands from the pilot
       Commander.Get_RPY (Euler_Roll_Desired,
@@ -656,14 +687,14 @@ is
                                           Roll_Type,
                                           Pitch_Type);
 
-      --  Update attitude at IMU_UPDATE_FREQ / ATTITUDE_UPDATE_RATE_DIVIDER
-      --  By default the result is 250 Hz
-      if Attitude_Update_Counter >= ATTITUDE_UPDATE_RATE_DIVIDER then
-         --  Update attitude
-         Update_Attitude;
-         --  Reset the counter
-         Attitude_Update_Counter := 0;
-      end if;
+      --  --  Update attitude at IMU_UPDATE_FREQ / ATTITUDE_UPDATE_RATE_DIVIDER
+      --  --  By default the result is 250 Hz
+      --  if Attitude_Update_Counter >= ATTITUDE_UPDATE_RATE_DIVIDER then
+      --     --  Update attitude
+      --     Update_Attitude;
+      --     --  Reset the counter
+      --     Attitude_Update_Counter := 0;
+      --  end if;
 
       if IMU.Has_Barometer and
         Alt_Hold_Update_Counter >= ALTHOLD_UPDATE_RATE_DIVIDER
@@ -702,4 +733,6 @@ is
       end if;
    end Control_Loop;
 
+begin
+   Estimators.Set_Required_Estimator (To => Estimator);
 end Stabilizer;

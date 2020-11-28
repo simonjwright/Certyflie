@@ -77,6 +77,8 @@ package body Generic_Queue is
    procedure Reset (Queue : in out T_Queue) is
    begin
       Queue.Count := 0;
+      Queue.Front := 1;
+      Queue.Rear  := 1;
    end Reset;
 
    --------------
@@ -102,10 +104,6 @@ package body Generic_Queue is
    ---------------------
 
    protected body Protected_Queue is
-
-      ------------------
-      -- Enqueue_Item --
-      ------------------
 
       procedure Enqueue_Item
         (Item         : T_Element;

@@ -51,7 +51,6 @@ with Types;
 package body Crazyflie_System is
 
    procedure Initialize_System_Parameter_Logging;
-   procedure Self_Test_Status (OK : Boolean) with Inline;
 
    -----------------
    -- System_Init --
@@ -122,39 +121,39 @@ package body Crazyflie_System is
       LEDS.Set_System_State (LEDS.Self_Test);
       if not LEDS.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "LEDS.test failed";
+         raise Program_Error with "LEDS.Test failed";
       end if;
       if not Motors.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "Motors.test failed";
+         raise Program_Error with "Motors.Test failed";
       end if;
       if not IMU.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "IMU.test failed";
+         raise Program_Error with "IMU.Test failed";
       end if;
       if not Communication.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "Communication.test failed";
+         raise Program_Error with "Communication.Test failed";
       end if;
       if not Memory.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "Memory.test failed";
+         raise Program_Error with "Memory.Test failed";
       end if;
       if not Memory.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "Memory.test failed";
+         raise Program_Error with "Memory.Test failed";
       end if;
       if not Commander.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "Commander.test failed";
+         raise Program_Error with "Commander.Test failed";
       end if;
       if not Stabilizer.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "Stabilizer.test failed";
+         raise Program_Error with "Stabilizer.Test failed";
       end if;
       if not Deck.Test then
          Self_Test_Passed := False;
-         raise Program_Error with "Deck.test failed";
+         raise Program_Error with "Deck.Test failed";
       end if;
 
       --  Self_Test_Passed := LEDS.Test;
@@ -181,8 +180,6 @@ package body Crazyflie_System is
          LEDS.Set_System_State (LEDS.Failure);
          raise Program_Error with "self test didn't pass";
       end if;
-
-      Self_Test_Status (OK => Self_Test_Passed);
 
       return Self_Test_Passed;
    end System_Self_Test;
@@ -271,10 +268,5 @@ package body Crazyflie_System is
          end;
       end if;
    end Initialize_System_Parameter_Logging;
-
-   procedure Self_Test_Status (OK : Boolean) is
-   begin
-      Self_Test_Passed := OK;
-   end Self_Test_Status;
 
 end Crazyflie_System;

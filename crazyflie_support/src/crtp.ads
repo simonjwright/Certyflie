@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -33,9 +34,7 @@ with Ada.Real_Time;
 with Generic_Queue;
 with Types;
 
-package CRTP
-  with Abstract_State => CRTP_State
-is
+package CRTP is
 
    --  Constants
 
@@ -52,21 +51,27 @@ is
    for Channel_T'Size use 2;
 
    --  Enumeration type for CRTP ports. Each port corresponds to
-   --  a specific modules.
+   --  a specific module.
    type Port_T is (PORT_CONSOLE,
                    PORT_PARAM,
-                   PORT_COMMANDER,
+                   PORT_SETPOINT,
                    PORT_MEM,
                    PORT_LOG,
+                   PORT_LOCALIZATION,
+                   PORT_SETPOINT_GENERIC,
+                   PORT_SETPOINT_HL,
                    PORT_PLATFORM,
                    PORT_LINK);
-   for Port_T use (PORT_CONSOLE   => 16#00#,
-                   PORT_PARAM     => 16#02#,
-                   PORT_COMMANDER => 16#03#,
-                   PORT_MEM       => 16#04#,
-                   PORT_LOG       => 16#05#,
-                   PORT_PLATFORM  => 16#0D#,
-                   PORT_LINK      => 16#0F#);
+   for Port_T use (PORT_CONSOLE          => 16#00#,
+                   PORT_PARAM            => 16#02#,
+                   PORT_SETPOINT         => 16#03#,
+                   PORT_MEM              => 16#04#,
+                   PORT_LOG              => 16#05#,
+                   PORT_LOCALIZATION     => 16#06#,
+                   PORT_SETPOINT_GENERIC => 16#07#,
+                   PORT_SETPOINT_HL      => 16#08#,
+                   PORT_PLATFORM         => 16#0D#,
+                   PORT_LINK             => 16#0F#);
    for Port_T'Size use 4;
 
    --  Type for representing the two reserved bits in a CRTP packet.
@@ -116,7 +121,7 @@ is
      (Port    : Port_T;
       Channel : Channel_T) return Packet_Handler;
 
-   --  Return an handler to easily manipulate the CRTP packet.
+   --  Return a handler to easily manipulate the CRTP packet.
    function Get_Handler_From_Packet
      (Pkt : Packet) return Packet_Handler;
 
@@ -124,13 +129,21 @@ is
    function Get_Packet_From_Handler
      (Handler : Packet_Handler) return Packet;
 
-   --  Append data to the CRTP Packet.
+   --  Append data to the CRTP Packet. Raises CE if there's not enough room.
    generic
       type T_Data is private;
    procedure Append_Data
      (Handler        : in out Packet_Handler;
-      Data           : T_Data;
-      Has_Succeed    : out Boolean);
+      Data           : T_Data);
+
+   --  Append data to the CRTP Packet. If 'Success' is returned False,
+   --  the data wasn't appended.
+   generic
+      type T_Data is private;
+   procedure Append_Data_If_Room
+     (Handler : in out Packet_Handler;
+      Data    :        T_Data;
+      Success :    out Boolean);
 
    --  Get data at a specified index of the CRTP Packet data field.
    generic
@@ -138,8 +151,7 @@ is
    procedure Get_Data
      (Handler     : Packet_Handler;
       Index       : Positive;
-      Data        : in out T_Data;
-      Has_Succeed : out Boolean);
+      Data        : out T_Data);
 
    --  Function pointer type for callbacks.
    type Callback is access procedure (Pkt : Packet);
@@ -225,13 +237,9 @@ private
    --  Global variables
 
    --  Number of dropped packets.
-   Dropped_Packets : Natural := 0
-   with
-     Part_Of => CRTP_State;
+   Dropped_Packets : Natural := 0;
 
    --  Used to know if we are still connected or not.
-   Connected : Boolean := False
-   with
-     Part_Of => CRTP_State;
+   Connected : Boolean := False;
 
 end CRTP;
