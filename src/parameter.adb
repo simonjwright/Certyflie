@@ -33,8 +33,6 @@ with CRC;
 with CRTP;
 with Types;
 
-with Console;
-
 package body Parameter is
 
    --  Types, subprograms previously in private part of spec
@@ -449,7 +447,6 @@ package body Parameter is
         (CRTP.PORT_PARAM, Parameter_Channel'Enum_Rep (READ_CH));
       if ID >= Parameter_Data.Parameter_Variables_Count then
          --  Invalid
-         Console.Put_Line ("Param.Read: invalid ID" & ID'Image);
          CRTP_Append_T_Uint8_Data
            (Packet_Handler, Types.T_Uint8'Last);
          CRTP_Append_T_Uint8_Data
@@ -463,19 +460,6 @@ package body Parameter is
             V : Parameter_Variable
             renames Parameter_Data.Parameter_Variables (Integer (ID)).all;
          begin
-            declare
-               Group : Parameter_Group
-                 renames Parameter_Data.Parameter_Groups (V.Group_ID);
-               Group_Name :  String
-                 renames Group.Name (1 .. Group.Name_Length);
-               Variable_Name : String
-                 renames V.Name (1 .. V.Name_Length);
-            begin
-               Console.Put_Line ("Param.Read "
-                                   & Group_Name
-                                   & "."
-                                   & Variable_Name);
-            end;
             case V.Parameter_Type.Size is
                when One_Byte =>
                   declare
@@ -483,8 +467,6 @@ package body Parameter is
                        (Types.T_Uint8);
                      Variable : Types.T_Uint8 with Address => V.Variable;
                   begin
-                     Console.Put_Line
-                       ("Param: 8-bit value is " & Variable'Image);
                      Append_Data (Packet_Handler, Variable);
                   end;
                when Two_Bytes =>

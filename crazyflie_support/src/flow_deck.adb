@@ -45,6 +45,7 @@ with VL53L0X;
 
 with Estimators;
 with Parameter;
+with Stabilizer_Types;
 --  with Log;
 
 with Console;
@@ -272,7 +273,7 @@ package body Flow_Deck is
                --  Provide the current measurement, flipping to
                --  account for the sensor mounting.
                Estimators.Current_Estimator.Enqueue
-                 (Estimators.Flow_Measurement'
+                 (Stabilizer_Types.Flow_Measurement'
                     (Timestamp            => Ada.Real_Time.Clock,
                      Dx                   => Float (-M.Delta_Y),
                      Dy                   => Float (-M.Delta_X),
@@ -328,7 +329,7 @@ package body Flow_Deck is
                          (Exp_Coeff * (Distance - Exp_Point_A)));
                begin
                   Estimators.Current_Estimator.Enqueue
-                    (Estimators.ToF_Measurement'
+                    (Stabilizer_Types.ToF_Measurement'
                        (Timestamp          => Ada.Real_Time.Clock,
                         Distance           => Distance,
                         Standard_Deviation => SD));

@@ -32,14 +32,14 @@
 with Commander;
 with Controller;
 with Estimators;
-with Estimators.Original;
+with Estimators.Kalman;
 with Free_Fall;
 with IMU;
 with Motors;
 with Pid;
 with Pid_Parameters;
 with Power_Management;
-with SensFusion6;
+with Stabilizer_Types;
 pragma Elaborate_All (Pid); -- why?
 
 with Config;
@@ -135,13 +135,13 @@ is
 
    Is_Init : Boolean := False;
 
-   Estimator : Estimators.Original.Original_Estimator;
+   Estimator : Estimators.Kalman.Kalman_Estimator;
 
    --  Sensor info (accelerometer, gyro, magnetometer, barometer).
-   Sensor_Data : Estimators.Sensor_Data;
+   Sensor_Data : Stabilizer_Types.Sensor_Data;
 
    --  State info (attitude, position, velocity, acceleration).
-   State_Data : Estimators.State_Data;
+   State_Data : Stabilizer_Types.State_Data;
 
    --  IMU outputs. The IMU is composed of an accelerometer, a gyroscope
    --  and a magnetometer.
@@ -436,15 +436,27 @@ is
    ---------------------
 
    procedure Update_Attitude is
+      Control : Stabilizer_Types.Control_Data;
    begin
+      --  Not sure where Euler_*_Desired get set!
+      Control.Roll  := Euler_Roll_Desired;
+      Control.Pitch := Euler_Pitch_Desired;
+      Control.Yaw   := Euler_Yaw_Desired;
+      Commander.Get_Thrust (Thrust => Control.Thrust);
+
       Estimator.Estimate
-        (State => State_Data, Sensors => Sensor_Data, Tick => 0);
+        (State => State_Data,
+         Sensors => Sensor_Data,
+         Control => Control,
+         Tick => 0);
 
       --  Vertical acceleration without gravity
-      Acc_WZ := SensFusion6.Get_AccZ_Without_Gravity
-        (Ax => Sensor_Data.Acc.X,
-         Ay => Sensor_Data.Acc.Y,
-         Az => Sensor_Data.Acc.Z);
+      --  XXX should be able to get this from the state data.
+      --  Acc_WZ := SensFusion6.Get_AccZ_Without_Gravity
+      --    (Ax => Sensor_Data.Acc.X,
+      --     Ay => Sensor_Data.Acc.Y,
+      --     Az => Sensor_Data.Acc.Z);
+      Acc_WZ := State_Data.Acc.Z;
       --  Magnitude of acceleration: not used
       --  Acc_MAG := (Acc.X * Acc.X) + (Acc.Y * Acc.Y) + (Acc.Z * Acc.Z);
 
@@ -463,7 +475,8 @@ is
                                        Euler_Roll_Desired,
                                        Euler_Pitch_Desired,
                                        -Euler_Yaw_Desired);
-      Controller.Get_Desired_Rate (Roll_Rate_Desired, Pitch_Rate_Desired,
+      Controller.Get_Desired_Rate (Roll_Rate_Desired,
+                                   Pitch_Rate_Desired,
                                    Yaw_Rate_Desired);
    end Update_Attitude;
 
@@ -633,6 +646,8 @@ is
       Controller.Init;
 
       Init_Logging;
+
+      Estimator.Initialize;
 
       Is_Init := True;
    end Init;

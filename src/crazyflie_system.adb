@@ -29,11 +29,12 @@
 ------------------------------------------------------------------------------
 
 with Ada.Real_Time;
+
 pragma Warnings (Off, "is an internal GNAT unit");
 with System.FreeRTOS.Tasks;
+with System.Hardfault_Handling;
+pragma Unreferenced (System.Hardfault_Handling);
 pragma Warnings (On, "is an internal GNAT unit");
-with Hardfault_Handling;
-pragma Unreferenced (Hardfault_Handling);
 
 with Communication;
 with Commander;

@@ -1,14 +1,15 @@
 with SensFusion6;
 
-package body Estimators.Original is
+package body Estimators.Complementary is
 
    procedure Estimate
-     (This    : in out Original_Estimator;
-      State   : in out State_Data;
-      Sensors :    out Sensor_Data;
-      --  Control :        Control_Data;
+     (This    : in out Complementary_Estimator;
+      State   : in out Stabilizer_Types.State_Data;
+      Sensors :    out Stabilizer_Types.Sensor_Data;
+      Control :        Stabilizer_Types.Control_Data;
       Tick    :        Types.T_Uint32)
    is
+      pragma Unreferenced (Control);
       Delta_T : constant := 1.0 / 250.0;  -- XXX
    begin
       This.Acquire_Sensor_Data (Sensors => Sensors, Tick => Tick);
@@ -35,6 +36,11 @@ package body Estimators.Original is
                                   Qw => State.Quat.W);
       State.Quat.Timestamp := Tick;
 
+      State.Acc.Z := SensFusion6.Get_AccZ_Without_Gravity
+        (Ax => Sensors.Acc.X,
+         Ay => Sensors.Acc.Y,
+         Az => Sensors.Acc.Z);
+
       --  update the z velocity; in the C, this happens in
       --  position_estimator_altitude.c!
       --
@@ -47,4 +53,4 @@ package body Estimators.Original is
 
    end Estimate;
 
-end Estimators.Original;
+end Estimators.Complementary;
