@@ -52,7 +52,7 @@ package Commander is
       Euler_Pitch_Desired : out Types.T_Degrees;
       Euler_Yaw_Desired   : out Types.T_Degrees);
 
-   --  Get the commands types by default or from the client..
+   --  Get the command types by default or from the client.
    procedure Get_RPY_Type
      (Roll_Type  : out RPY_Type;
       Pitch_Type : out RPY_Type;
@@ -61,7 +61,7 @@ package Commander is
    --  Get the thrust from the pilot.
    procedure Get_Thrust (Thrust : out Types.T_Uint16);
 
-   --  Get Alt Hold Mode parameters from the pilot..
+   --  Get Alt Hold Mode parameters from the pilot.
    procedure Get_Alt_Hold
      (Alt_Hold        : out Boolean;
       Set_Alt_Hold    : out Boolean;

@@ -1,4 +1,6 @@
 with IMU;
+with Ada.Numerics.Elementary_Functions;
+with Semihosting;
 
 package body Estimators is
 
@@ -11,8 +13,45 @@ package body Estimators is
       Current := To'Unchecked_Access;
    end Set_Required_Estimator;
 
+   package Accelerometer_Scaling is
+      procedure Process (Acc : in out IMU.Accelerometer_Data);
+   end Accelerometer_Scaling;
+   package body Accelerometer_Scaling is
+      Reported : Boolean := False;
+      Accumulated : Float := 0.0;
+      Run_In : Natural := 64;
+      Count : Natural := 0;
+      Limit : constant := 64;
+      Scale : Float := 1.0;
+
+      procedure Process (Acc : in out IMU.Accelerometer_Data) is
+      begin
+         if Run_In > 0 then
+            Run_In := Run_In - 1;
+            return;
+         end if;
+         if Reported then
+            Acc.X := Acc.X * Scale;
+            Acc.Y := Acc.Y * Scale;
+            Acc.Z := Acc.Z * Scale;
+            return;
+         end if;
+         Count := Count + 1;
+         Accumulated :=
+           Accumulated
+             + Ada.Numerics.Elementary_Functions.Sqrt
+               (Acc.X**2 + Acc.Y**2 + Acc.Z**2);
+         if Count = Limit then
+            Reported := True;
+            Scale := Float (Count) / Accumulated;
+            Semihosting.Log_Line ("accel scale: " & Scale'Image);
+         end if;
+      end Process;
+
+   end Accelerometer_Scaling;
+
    procedure Acquire_Sensor_Data (This    :     Estimator;
-                                  Sensors : out Sensor_Data;
+                                  Sensors : out Stabilizer_Types.Sensor_Data;
                                   Tick    :     Types.T_Uint32)
    is
       Gyro        : IMU.Gyroscope_Data;
@@ -20,6 +59,7 @@ package body Estimators is
       Mag         : IMU.Magnetometer_Data;
    begin
       IMU.Read_9 (Gyro, Acc, Mag);
+      Accelerometer_Scaling.Process (Acc);
       Sensors.Timestamp := Tick;
       Sensors.Acc       := (Timestamp   => Tick,
                             X           => Acc.X,

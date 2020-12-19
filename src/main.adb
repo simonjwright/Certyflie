@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Certyflie                                   --
 --                                                                          --
---                     Copyright (C) 2015-2016, AdaCore                     --
+--                     Copyright (C) 2015-2020, AdaCore                     --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -46,11 +46,17 @@ procedure Main is
    --  which aren't enough for the Certyflie code.
 
    --  For the environment task.
-   Environment_Task_Storage_Size : constant Natural := 3072
+   Environment_Task_Storage_Size : constant Natural := 10240
    with
      Export,
      Convention => Ada,
      External_Name => "_environment_task_storage_size";
+
+   Environment_Task_Secondary_Stack_Size : constant Natural := 5120
+   with
+     Export,
+     Convention => Ada,
+     External_Name => "_environment_task_secondary_stack_size";
 
    --  For ordinary tasks.
    Default_Storage_Size : constant Natural := 4096

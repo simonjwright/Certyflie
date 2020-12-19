@@ -208,6 +208,9 @@ package body Commander is
    -- CRTP_Setpoint_Generic_Handler --
    -----------------------------------
 
+   Last_Setpoint_Kind : Setpoint_Packet_Kind
+     := Setpoint_Packet_Kind'First;
+
    procedure CRTP_Setpoint_Generic_Handler (Packet : CRTP.Packet) is
       procedure Get_Setpoint_Packet_Kind
         is new CRTP.Get_Data (Setpoint_Packet_Kind);
@@ -216,7 +219,10 @@ package body Commander is
       Kind    : Setpoint_Packet_Kind;
    begin
       Get_Setpoint_Packet_Kind (Handler, 1, Kind);
-      Console.Put_Line ("Received Generic Setpoint kind: " & Kind'Image);
+      if Kind /= Last_Setpoint_Kind then
+         Console.Put_Line ("Received Generic Setpoint kind: " & Kind'Image);
+         Last_Setpoint_Kind := Kind;
+      end if;
       Watchdog_Reset;
    end CRTP_Setpoint_Generic_Handler;
 
