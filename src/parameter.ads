@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2017, AdaCore                     --
+--        Copyright (C) 2017-2020, Simon Wright <simon@pushface.org>        --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -69,20 +70,19 @@ package Parameter is
    function Test return Boolean;
 
    --  Create a parameter group if there is any space left and if the name
-   --  is not too long.
+   --  is not too long. Raises CE if either applies.
    procedure Create_Parameter_Group
-     (Name        : String;
-      Group_ID    : out Natural;
-      Has_Succeed : out Boolean)
+     (Name     :     String;
+      Group_ID : out Natural)
    with Pre => Name'Length <= MAX_VARIABLE_NAME_LENGTH;
 
-   --  Append a variable to a parameter group.
+   --  Append a variable to a parameter group if there is any space
+   --  left (raises CE if not).
    procedure Append_Parameter_Variable_To_Group
      (Group_ID       : Natural;
       Name           : String;
       Parameter_Type : Parameter_Variable_Type;
-      Variable       : System.Address;
-      Has_Succeed    : out Boolean)
+      Variable       : System.Address)
    with Pre => Name'Length <= MAX_VARIABLE_NAME_LENGTH;
 
 end Parameter;

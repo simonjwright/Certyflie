@@ -31,6 +31,7 @@
 with Ada.Real_Time;
 with Console;
 with CRTP;
+with Parameter;
 with Safety;
 
 package body Commander is
@@ -68,6 +69,16 @@ package body Commander is
    end record;
    pragma Pack (CRTP_Values);
 
+   --  Writable flight mode parameters
+   Alt_Hold_Mode        : Boolean := False with Volatile, Convention => C;
+   Pos_Hold_Mode        : Boolean := False with Volatile, Convention => C;
+   Pos_Set_Mode         : Boolean := False with Volatile, Convention => C;
+   Yaw_Mode             : Boolean := False with Volatile, Convention => C;
+   Carefree_Reset_Front : Boolean := False with Volatile, Convention => C;
+   Stab_Mode_Roll       : Boolean := False with Volatile, Convention => C;
+   Stab_Mode_Pitch      : Boolean := False with Volatile, Convention => C;
+   Stab_Mode_Yaw        : Boolean := False with Volatile, Convention => C;
+
    --  Global variables and constants
 
    COMMANDER_WDT_TIMEOUT_STABILIZE : constant Ada.Real_Time.Time_Span
@@ -81,7 +92,6 @@ package body Commander is
 
    Is_Init           : Boolean := False;
    Is_Inactive       : Boolean := True; pragma Unreferenced (Is_Inactive);
-   Alt_Hold_Mode     : Boolean := False;
    Alt_Hold_Mode_Old : Boolean := False;
    Thrust_Locked     : Boolean := True;
    Side              : Boolean := False;
@@ -92,6 +102,8 @@ package body Commander is
    Last_Update : Ada.Real_Time.Time;
 
    --  Procedures and functions
+
+   procedure Set_Up_Parameters;
 
    --  Handler called when a SETPOINT CRTP packet is received in the
    --  commander port queue.
@@ -120,9 +132,62 @@ package body Commander is
 
    --  Private procedures and functions
 
-   --------------------
-   -- Watchdog_Reset --
-   --------------------
+   procedure Set_Up_Parameters is
+      Flightmode_Group_ID : Natural := 0;
+      use Parameter;
+   begin
+      Create_Parameter_Group (Name => "flightmode",
+                              Group_ID => Flightmode_Group_ID);
+      declare
+         Typ : constant Parameter_Variable_Type
+           := (Size      => One_Byte,
+               Floating  => False,
+               Signed    => False,
+               Read_Only => False,
+               others    => <>);
+      begin
+         Append_Parameter_Variable_To_Group
+           (Flightmode_Group_ID,
+            Name => "althold",
+            Parameter_Type => Typ,
+            Variable => Alt_Hold_Mode'Address);
+         Append_Parameter_Variable_To_Group
+           (Flightmode_Group_ID,
+            Name => "poshold",
+            Parameter_Type => Typ,
+            Variable => Pos_Hold_Mode'Address);
+         Append_Parameter_Variable_To_Group
+           (Flightmode_Group_ID,
+            Name => "posSet",
+            Parameter_Type => Typ,
+            Variable => Pos_Set_Mode'Address);
+         Append_Parameter_Variable_To_Group
+           (Flightmode_Group_ID,
+            Name => "yawMode",
+            Parameter_Type => Typ,
+            Variable => Yaw_Mode'Address);
+         Append_Parameter_Variable_To_Group
+           (Flightmode_Group_ID,
+            Name => "yawRst",
+            Parameter_Type => Typ,
+            Variable => Carefree_Reset_Front'Address);
+         Append_Parameter_Variable_To_Group
+           (Flightmode_Group_ID,
+            Name => "stabModeRoll",
+            Parameter_Type => Typ,
+            Variable => Stab_Mode_Roll'Address);
+         Append_Parameter_Variable_To_Group
+           (Flightmode_Group_ID,
+            Name => "stabModePitch",
+            Parameter_Type => Typ,
+            Variable => Stab_Mode_Pitch'Address);
+         Append_Parameter_Variable_To_Group
+           (Flightmode_Group_ID,
+            Name => "stabModeYaw",
+            Parameter_Type => Typ,
+            Variable => Stab_Mode_Yaw'Address);
+      end;
+   end Set_Up_Parameters;
 
    procedure Watchdog_Reset is
    begin
@@ -131,10 +196,6 @@ package body Commander is
       Last_Update := Ada.Real_Time.Clock;
    end Watchdog_Reset;
 
-   -------------------------
-   -- Get_Inactivity_Time --
-   -------------------------
-
    function Get_Inactivity_Time return Ada.Real_Time.Time_Span
    is
       Current_Time : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
@@ -142,10 +203,6 @@ package body Commander is
    begin
       return Current_Time - Last_Update;
    end Get_Inactivity_Time;
-
-   --------------
-   -- Watchdog --
-   --------------
 
    procedure Watchdog is
       Used_Side : Boolean;
@@ -177,10 +234,6 @@ package body Commander is
       end if;
    end Watchdog;
 
-   ---------------------------
-   -- CRTP_Setpoint_Handler --
-   ---------------------------
-
    procedure CRTP_Setpoint_Handler (Packet : CRTP.Packet) is
       Handler  : constant CRTP.Packet_Handler
         := CRTP.Get_Handler_From_Packet (Packet);
@@ -204,10 +257,6 @@ package body Commander is
       Watchdog_Reset;
    end CRTP_Setpoint_Handler;
 
-   -----------------------------------
-   -- CRTP_Setpoint_Generic_Handler --
-   -----------------------------------
-
    Last_Setpoint_Kind : Setpoint_Packet_Kind
      := Setpoint_Packet_Kind'First;
 
@@ -228,15 +277,13 @@ package body Commander is
 
    --  Public procedures and functions
 
-   ----------
-   -- Init --
-   ----------
-
    procedure Init is
    begin
       if Is_Init then
          return;
       end if;
+
+      Set_Up_Parameters;
 
       Last_Update := Ada.Real_Time.Clock;
       CRTP.Register_Callback
@@ -247,18 +294,10 @@ package body Commander is
       Is_Init := True;
    end Init;
 
-   ----------
-   -- Test --
-   ----------
-
    function Test return Boolean is
    begin
       return Is_Init;
    end Test;
-
-   -------------
-   -- Get_RPY --
-   -------------
 
    procedure Get_RPY
      (Euler_Roll_Desired  : out Types.T_Degrees;
@@ -275,10 +314,6 @@ package body Commander is
       Euler_Yaw_Desired := Target_Val (Used_Side).Yaw;
    end Get_RPY;
 
-   ------------------
-   -- Get_RPY_Type --
-   ------------------
-
    procedure Get_RPY_Type
      (Roll_Type  : out RPY_Type;
       Pitch_Type : out RPY_Type;
@@ -288,10 +323,6 @@ package body Commander is
       Pitch_Type := ANGLE;
       Yaw_Type := RATE;
    end Get_RPY_Type;
-
-   ----------------
-   -- Get_Thrust --
-   ----------------
 
    procedure Get_Thrust (Thrust : out Types.T_Uint16) is
       Raw_Thrust : Types.T_Uint16;
@@ -306,10 +337,6 @@ package body Commander is
 
       Watchdog;
    end Get_Thrust;
-
-   ------------------
-   -- Get_Alt_Hold --
-   ------------------
 
    procedure Get_Alt_Hold
      (Alt_Hold        : out Boolean;

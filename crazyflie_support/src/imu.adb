@@ -554,37 +554,31 @@ package body IMU is
 
    procedure Initialize_Parameter_Logging is
       Group_ID : Natural;
-      Group_Created : Boolean;
       use Parameter;
    begin
       Create_Parameter_Group (Name        => "imu_sensors",
-                              Group_ID    => Group_ID,
-                              Has_Succeed => Group_Created);
+                              Group_ID    => Group_ID);
 
-      if Group_Created then
-         declare
-            Dummy          : Boolean;
-            Parameter_Type : constant Parameter.Parameter_Variable_Type
-              := (Size      => One_Byte,
-                  Floating  => False,
-                  Signed    => False,
-                  Read_Only => True,
-                  others    => <>);
-         begin
-            Parameter.Append_Parameter_Variable_To_Group
-              (Group_ID,
-               Name           => "HMC5883L",
-               Parameter_Type => Parameter_Type,
-               Variable       => Is_Magnetometer_Available'Address,
-               Has_Succeed    => Dummy);
-            Parameter.Append_Parameter_Variable_To_Group
-              (Group_ID,
-               Name           => "MS5611",  -- LPS25H would be better!
-               Parameter_Type => Parameter_Type,
-               Variable       => Is_Barometer_Available'Address,
-               Has_Succeed    => Dummy);
-         end;
-      end if;
+      declare
+         Parameter_Type : constant Parameter.Parameter_Variable_Type
+           := (Size      => One_Byte,
+               Floating  => False,
+               Signed    => False,
+               Read_Only => True,
+               others    => <>);
+      begin
+         Parameter.Append_Parameter_Variable_To_Group
+           (Group_ID,
+            Name           => "HMC5883L",
+            Parameter_Type => Parameter_Type,
+            Variable       => Is_Magnetometer_Available'Address);
+         Parameter.Append_Parameter_Variable_To_Group
+           (Group_ID,
+            Name           => "MS5611",  -- LPS25H would be better!
+            Parameter_Type => Parameter_Type,
+            Variable       => Is_Barometer_Available'Address);
+      end;
+
    end Initialize_Parameter_Logging;
 
 end IMU;

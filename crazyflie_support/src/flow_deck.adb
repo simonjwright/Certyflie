@@ -361,82 +361,51 @@ package body Flow_Deck is
 
    procedure Init_Parameters is
       --  Motion_Group_ID : Natural;
-      Deck_Group_ID : Natural;
-      Success : Boolean;
+      Deck_Group_ID     : Natural;
+      Read_Only_Boolean : constant Parameter.Parameter_Variable_Type
+        := (Size      => Parameter.One_Byte,
+            Floating  => False,
+            Signed    => False,
+            Read_Only => True,
+            others    => <>);
       use Parameter;
    begin
       --  Create_Parameter_Group ("motion",
-      --                          Group_ID => Motion_Group_ID,
-      --                          Has_Succeed => Success);
-      --  pragma Assert (Success, "coudn't create 'motion' parameter group");
+      --                          Group_ID => Motion_Group_ID;
       --  Append_Parameter_Variable_To_Group
       --    (Motion_Group_ID,
       --     Name => "disable",
-      --     Parameter_Type => Parameter_Variable_Type'
-      --       (Size => One_Byte,
-      --        Floating => False,
-      --        Signed => False,
-      --        Read_Only => False,
-      --        others => <>),
+      --     Parameter_Type => Read_Only_Boolean,
       --     Variable => Motion_Disabled'Address,
       --     Has_Succeed => Success);
       --  pragma Assert (Success,
       --                 "couldn't create 'motion.disable' parameter");
 
       Create_Parameter_Group ("deck",
-                              Group_ID => Deck_Group_ID,
-                              Has_Succeed => Success);
-      pragma Assert (Success, "coudn't create 'deck' parameter group");
+                              Group_ID => Deck_Group_ID);
 
       Append_Parameter_Variable_To_Group
         (Deck_Group_ID,
-         Name => "bcFlow",
-         Parameter_Type => Parameter_Variable_Type'
-           (Size => One_Byte,
-            Floating => False,
-            Signed => False,
-            Read_Only => True,
-            others => <>),
-         Variable => Flow_Sensor_Initialized'Address,
-         Has_Succeed => Success);
-      pragma Assert (Success, "couldn't create 'deck.bcFlow' parameter");
+         Name           => "bcFlow",
+         Parameter_Type => Read_Only_Boolean,
+         Variable       => Flow_Sensor_Initialized'Address);
       Append_Parameter_Variable_To_Group
         (Deck_Group_ID,
-         Name => "bcFlow2",
-         Parameter_Type => Parameter_Variable_Type'
-           (Size => One_Byte,
-            Floating => False,
-            Signed => False,
-            Read_Only => True,
-            others => <>),
-         Variable => Dummy_False_Parameter'Address,
-         Has_Succeed => Success);
-      pragma Assert (Success, "couldn't create 'deck.bcFlow2' parameter");
+         Name           => "bcFlow2",
+         Parameter_Type => Read_Only_Boolean,
+         Variable       => Dummy_False_Parameter'Address);
 
       Append_Parameter_Variable_To_Group
         (Deck_Group_ID,
-         Name => "bcZRanger",
-         Parameter_Type => Parameter_Variable_Type'
-           (Size => One_Byte,
-            Floating => False,
-            Signed => False,
-            Read_Only => True,
-            others => <>),
-         Variable => ToF_Sensor_Initialized'Address,
-         Has_Succeed => Success);
-      pragma Assert (Success, "couldn't create 'deck.bcZRanger' parameter");
+         Name           => "bcZRanger",
+         Parameter_Type => Read_Only_Boolean,
+         Variable       => ToF_Sensor_Initialized'Address);
       Append_Parameter_Variable_To_Group
         (Deck_Group_ID,
-         Name => "bcZRanger2",
-         Parameter_Type => Parameter_Variable_Type'
-           (Size => One_Byte,
-            Floating => False,
-            Signed => False,
-            Read_Only => True,
-            others => <>),
-         Variable => Dummy_False_Parameter'Address,
-         Has_Succeed => Success);
-      pragma Assert (Success, "couldn't create 'deck.bcZRanger2' parameter");
+         Name           => "bcZRanger2",
+         Parameter_Type => Read_Only_Boolean,
+         Variable       => Dummy_False_Parameter'Address);
+
    end Init_Parameters;
 
 end Flow_Deck;

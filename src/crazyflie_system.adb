@@ -236,7 +236,6 @@ package body Crazyflie_System is
    ------------------------------
 
    System_Group_ID : Natural := 0;
-   System_Group_Created : Boolean;
 
    Self_Test_Passed : Boolean := True
    with Convention => C;
@@ -247,27 +246,23 @@ package body Crazyflie_System is
       use Parameter;
    begin
       Create_Parameter_Group (Name        => "system",
-                              Group_ID    => System_Group_ID,
-                              Has_Succeed => System_Group_Created);
+                              Group_ID    => System_Group_ID);
 
-      if System_Group_Created then
-         declare
-            Dummy          : Boolean;
-            Parameter_Type : constant Parameter.Parameter_Variable_Type
-              := (Size      => One_Byte,
-                  Floating  => False,
-                  Signed    => False,
-                  Read_Only => True,
-                  others    => <>);
-         begin
-            Parameter.Append_Parameter_Variable_To_Group
-              (System_Group_ID,
-               Name           => "selftestPassed",
-               Parameter_Type => Parameter_Type,
-               Variable       => Self_Test_Passed'Address,
-               Has_Succeed    => Dummy);
-         end;
-      end if;
+      declare
+         Parameter_Type : constant Parameter.Parameter_Variable_Type
+           := (Size      => One_Byte,
+               Floating  => False,
+               Signed    => False,
+               Read_Only => True,
+               others    => <>);
+      begin
+         Parameter.Append_Parameter_Variable_To_Group
+           (System_Group_ID,
+            Name           => "selftestPassed",
+            Parameter_Type => Parameter_Type,
+            Variable       => Self_Test_Passed'Address);
+      end;
+
    end Initialize_System_Parameter_Logging;
 
 end Crazyflie_System;
