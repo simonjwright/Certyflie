@@ -91,9 +91,30 @@ package body Estimators.Kalman is
       --     Next_Baro_Update_Time := Now + Baro_Update_Interval;
       --  end if;
 
-      --  Reads the Gyro data again??? Calls
-      --  updateQueuedMeasurements() if updated
-      null;
+      --  Reads the Gyro data again???
+
+      declare
+         Flow : Stabilizer_Types.Flow_Measurement;
+         Valid : Boolean;
+      begin
+         This.Flow.Get (Flow, Valid);
+         if Valid then
+            Kalman_Core.Update_With_Flow (This => This.Core,
+                                          Flow => Flow,
+                                          Gyro => Sensors.Gyro);
+         end if;
+      end;
+
+      declare
+         ToF : Stabilizer_Types.ToF_Measurement;
+         Valid : Boolean;
+      begin
+         This.ToF.Get (ToF, Valid);
+         if Valid then
+            Kalman_Core.Update_With_ToF (This => This.Core,
+                                         ToF  => ToF);
+         end if;
+      end;
 
       --  If an update has been made, the state is finalized:
       --  - the attitude error is moved into the body attitude quaternion,

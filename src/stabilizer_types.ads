@@ -118,18 +118,18 @@ package Stabilizer_Types is
    --  Flow (horizontal movement over ground)
    type Flow_Measurement is record
       Timestamp            : Ada.Real_Time.Time;
-      Dx                   : Float;
+      Dx                   : Float;  -- Accumulated pixel count
       Dy                   : Float;
       Standard_Deviation_X : Float;
       Standard_Deviation_Y : Float;
-      Dt                   : Float;
+      Dt                   : Float;  -- Time during which pixels accumulated
    end record;
 
    --  Height
    type ToF_Measurement is record
       Timestamp          : Ada.Real_Time.Time;
-      Distance           : Float;
-      Standard_Deviation : Float;
+      Distance           : Float;  -- metres
+      Standard_Deviation : Float;  -- metres
    end record;
 
 --  typedef struct state_s {

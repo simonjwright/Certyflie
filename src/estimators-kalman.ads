@@ -15,8 +15,6 @@ package Estimators.Kalman is
       Control :        Stabilizer_Types.Control_Data;
       Tick    :        Types.T_Uint32);
 
-   --  We're not interested in Flow or ToF measurements. FAKE NEWS
-
 private
 
    type Kalman_Estimator is new Estimator with record

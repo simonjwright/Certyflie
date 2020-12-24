@@ -5,7 +5,7 @@ private with Ada.Numerics.Real_Arrays;
 
 package Kalman_Core is
 
-   type Core is private;
+   type Core is limited private;
 
    procedure Initialize (This    : in out Core;
                          At_Time :        Ada.Real_Time.Time);
@@ -25,6 +25,15 @@ package Kalman_Core is
                                Altitude  :        Float);
    --  Altitude in metres above sea level.
 
+   procedure Update_With_Flow
+     (This : in out Core;
+      Flow :        Stabilizer_Types.Flow_Measurement;
+      Gyro :        Stabilizer_Types.Angular_Velocity_Degrees);
+
+   procedure Update_With_ToF
+     (This : in out Core;
+      ToF  :        Stabilizer_Types.ToF_Measurement);
+
    function Has_Been_Updated (This : Core) return Boolean;
 
    procedure Finalize (This : in out Core);
@@ -43,9 +52,9 @@ private
    --  Safe way of naming the components of Space_Vector.
 
    type Component_Names is (C_X, C_Y, C_Z, C_Vx, C_Vy, C_Vz, C_D0, C_D1, C_D2);
-   X : constant := Component_Names'Pos (C_X);
-   Y : constant := Component_Names'Pos (C_Y);
-   Z : constant := Component_Names'Pos (C_Z);
+   X  : constant := Component_Names'Pos (C_X);
+   Y  : constant := Component_Names'Pos (C_Y);
+   Z  : constant := Component_Names'Pos (C_Z);
    Vx : constant := Component_Names'Pos (C_Vx);
    Vy : constant := Component_Names'Pos (C_Vy);
    Vz : constant := Component_Names'Pos (C_Vz);
@@ -63,7 +72,7 @@ private
       Z : Float;
    end record;
 
-   type Core is record
+   type Core is limited record
       --  State vector
       S : Space_Vector := (others => 0.0);
       --  Attitude as quaternion

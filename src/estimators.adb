@@ -4,6 +4,36 @@ with Semihosting;
 
 package body Estimators is
 
+   protected body Protected_Flow is
+      procedure Put (Flow  : Stabilizer_Types.Flow_Measurement) is
+      begin
+         Value := Flow;
+         Updated := True;
+      end Put;
+      procedure Get (Flow  : out Stabilizer_Types.Flow_Measurement;
+                     Valid : out Boolean) is
+      begin
+         Flow := Value;
+         Valid := Updated;
+         Updated := False;
+      end Get;
+   end Protected_Flow;
+
+   protected body Protected_ToF is
+      procedure Put (ToF   : Stabilizer_Types.ToF_Measurement) is
+      begin
+         Value := ToF;
+         Updated := True;
+      end Put;
+      procedure Get (ToF   : out Stabilizer_Types.ToF_Measurement;
+                     Valid : out Boolean) is
+      begin
+         ToF := Value;
+         Valid := Updated;
+         Updated := False;
+      end Get;
+   end Protected_ToF;
+
    Current : Estimator_P;
 
    function Current_Estimator return Estimator_P is (Current);
@@ -49,6 +79,20 @@ package body Estimators is
       end Process;
 
    end Accelerometer_Scaling;
+
+   procedure Enqueue (This : in out Estimator;
+                      Flow : Stabilizer_Types.Flow_Measurement)
+   is
+   begin
+      This.Flow.Put (Flow);
+   end Enqueue;
+
+   procedure Enqueue (This : in out Estimator;
+                      ToF  : Stabilizer_Types.ToF_Measurement)
+   is
+   begin
+      This.ToF.Put (ToF);
+   end Enqueue;
 
    procedure Acquire_Sensor_Data (This    :     Estimator;
                                   Sensors : out Stabilizer_Types.Sensor_Data;

@@ -466,7 +466,7 @@ package body Kalman_Core is
 
       --  Covariance update
 
-      -- XXX this is the formula in the S source
+      --  XXX this is the formula in the C source
       declare
          Old_P : constant Space_Matrix := This.P;
          TmpNN1 : Space_Matrix;
@@ -543,6 +543,85 @@ package body Kalman_Core is
                      Standard_Deviation => Process_Noise.Baro);
       pragma Assert (not Has_Nan (This));
    end Update_With_Baro;
+
+   procedure Update_With_Flow
+     (This : in out Core;
+      Flow :        Stabilizer_Types.Flow_Measurement;
+      Gyro :        Stabilizer_Types.Angular_Velocity_Degrees)
+   is
+      Degrees_To_Radians : constant := Ada.Numerics.Pi / 180.0;
+      --  Camera constants
+      --  Maybe to do with aperture?
+      Npix : constant := 30.0;
+      Thetapix : constant :=  4.0 * Degrees_To_Radians;
+      Omega_Factor : constant := 1.25;
+      --  Body rates
+      Omegax_B : constant Float := Gyro.X * Degrees_To_Radians;
+      Omegay_B : constant Float := Gyro.Y * Degrees_To_Radians;
+      --  Global rates
+      Dx_G : constant Float := This.S (Vx);
+      Dy_G : constant Float := This.S (Vy);
+      Z_G : constant Float := Float'Max (This.S (Z), 0.1);
+   begin
+      This.Updated := True;
+      --  X velocity prediction and update
+      declare
+         Predicted_Nx : constant Float
+           := Flow.Dt * Npix / Thetapix
+             * ((Dx_G * This.R (2, 2) / Z_G) - Omega_Factor * Omegay_B);
+      begin
+         Scalar_Update
+           (This               => This,
+            Measurement_Vector =>
+              (Z => -Flow.Dt * Npix / Thetapix * This.R (2, 2) * Dx_G / Z_G**2,
+               Vx => Flow.Dt * Npix / Thetapix * This.R (2, 2) / Z_G,
+               others => 0.0),
+            Error              =>
+              (Flow.Dx - Predicted_Nx),
+            Standard_Deviation => Flow.Standard_Deviation_X);
+         pragma Assert (not Has_Nan (This));
+      end;
+      --  Y velocity prediction and update
+      declare
+         Predicted_Ny : constant Float
+           := Flow.Dt * Npix / Thetapix
+             * ((Dy_G * This.R (2, 2) / Z_G) - Omega_Factor * Omegax_B);
+      begin
+         Scalar_Update
+           (This               => This,
+            Measurement_Vector =>
+              (Z => -Flow.Dt * Npix / Thetapix * This.R (2, 2) * Dy_G / Z_G**2,
+               Vy => Flow.Dt * Npix / Thetapix * This.R (2, 2) / Z_G,
+               others => 0.0),
+            Error              =>
+              (Flow.Dy - Predicted_Ny),
+            Standard_Deviation => Flow.Standard_Deviation_Y);
+         pragma Assert (not Has_Nan (This));
+      end;
+   end Update_With_Flow;
+
+   procedure Update_With_ToF
+     (This : in out Core;
+      ToF  :        Stabilizer_Types.ToF_Measurement)
+   is
+      Z_Scale : Float renames This.R (2, 2);
+   begin
+      --  Only update the filter if the measurement is reliable.
+      if Z_Scale in 0.1 .. 1.0 then
+         This.Updated := True;
+         declare
+            Predicted_Distance : constant Float := This.S (Z) / Z_Scale;
+         begin
+            Scalar_Update (This               => This,
+                           Measurement_Vector =>
+                             (Z => 1.0 / Z_Scale, others => 0.0),
+                           Error              =>
+                             (ToF.Distance - Predicted_Distance),
+                           Standard_Deviation => ToF.Standard_Deviation);
+            pragma Assert (not Has_Nan (This));
+         end;
+      end if;
+   end Update_With_ToF;
 
    procedure Finalize (This : in out Core)
    is

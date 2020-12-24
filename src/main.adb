@@ -66,11 +66,11 @@ procedure Main is
      External_Name => "_default_storage_size";
 
    --  For the initial stack (also used for interrupt programs).
-   --  Default_Initial_Stack : constant Natural := 1024
-   --  with
-   --    Export,
-   --    Convention => Ada,
-   --    External_Name => "_default_initial_stack";
+   Default_Initial_Stack : constant Natural := 2048
+   with
+     Export,
+     Convention => Ada,
+     External_Name => "_default_initial_stack";
 
    Self_Test_Passed : Boolean;
 begin
