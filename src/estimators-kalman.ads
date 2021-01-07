@@ -10,7 +10,7 @@ package Estimators.Kalman is
    overriding
    procedure Estimate
      (This    : in out Kalman_Estimator;
-      State   : in out Stabilizer_Types.State_Data;
+      State   :    out Stabilizer_Types.State_Data;
       Sensors :    out Stabilizer_Types.Sensor_Data;
       Control :        Stabilizer_Types.Control_Data;
       Tick    :        Types.T_Uint32);

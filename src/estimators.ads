@@ -16,7 +16,7 @@ package Estimators is
 
    procedure Estimate
      (This    : in out Estimator;
-      State   : in out Stabilizer_Types.State_Data;
+      State   :    out Stabilizer_Types.State_Data;
       Sensors :    out Stabilizer_Types.Sensor_Data;
       Control :        Stabilizer_Types.Control_Data;
       Tick    :        Types.T_Uint32) is abstract;

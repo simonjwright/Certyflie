@@ -4,7 +4,7 @@ package body Estimators.Complementary is
 
    procedure Estimate
      (This    : in out Complementary_Estimator;
-      State   : in out Stabilizer_Types.State_Data;
+      State   :    out Stabilizer_Types.State_Data;
       Sensors :    out Stabilizer_Types.Sensor_Data;
       Control :        Stabilizer_Types.Control_Data;
       Tick    :        Types.T_Uint32)
@@ -49,6 +49,7 @@ package body Estimators.Complementary is
       --
       --  Do we need this?
 
+      --  Could we do Flow?
       --  Get the ToF input & do a position_estimate().
 
    end Estimate;
