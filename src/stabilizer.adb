@@ -32,6 +32,7 @@
 with Commander;
 with Controller;
 with Estimators;
+with Estimators.Complementary;
 with Estimators.Kalman;
 with Free_Fall;
 with IMU;
@@ -135,6 +136,7 @@ is
 
    Is_Init : Boolean := False;
 
+   --  Estimator : Estimators.Complementary.Complementary_Estimator;
    Estimator : Estimators.Kalman.Kalman_Estimator;
 
    --  Sensor info (accelerometer, gyro, magnetometer, barometer).

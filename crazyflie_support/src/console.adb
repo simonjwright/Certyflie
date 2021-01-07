@@ -28,6 +28,7 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
+with Config;
 with CRTP;
 with Ada.Real_Time;
 
@@ -46,6 +47,9 @@ package body Console is
       Last   : Natural := 0;
       Not_Empty  : Boolean := False; -- Ravenscar requires simple barrier
    end Message_Buffer;
+
+   task Console_Task
+     with Priority => Config.CONSOLE_TASK_PRIORITY;
 
    ----------
    -- Init --
@@ -139,7 +143,7 @@ package body Console is
       end Flush;
    end Message_Buffer;
 
-   task body Task_Type is
+   task body Console_Task is
       procedure Append_Character
         is new CRTP.Append_Data_If_Room (Character);
       procedure Send_Message;
@@ -188,6 +192,6 @@ package body Console is
             end;
          end loop;
       end loop;
-   end Task_Type;
+   end Console_Task;
 
 end Console;

@@ -121,6 +121,10 @@ package body Kalman_Core is
                         Space_Matrix'First (2));
       Old_P : constant Space_Matrix := This.P;
    begin
+      if This.Reset_Estimation then
+         Initialize (This, At_Time => Ada.Real_Time.Clock);
+      end if;
+
       pragma Assert (not Has_Nan (This));
 
       This.Updated := True;

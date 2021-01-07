@@ -30,48 +30,38 @@
 
 with Ada.Unchecked_Conversion;
 
-with Link_Interface;
-pragma Elaborate (Link_Interface);
-
+with Config;
 with LEDS;
+with Link_Interface;
+with Radiolink;
 
 package body CRTP is
 
-   ------------------
-   -- Tx_Task_Type --
-   ------------------
+   -------------
+   -- Rx_Task --
+   -------------
 
-   task body Tx_Task_Type is
-      Pkt         : Packet;
-      Has_Succeed : Boolean;
-      pragma Unreferenced (Has_Succeed);
-   begin
-      loop
-         Tx_Queue.Await_Item_To_Dequeue
-           (Pkt);
+   --  Task in charge of dequeuing the messages in the Rx_queue
+   --  to put them in the Port_Queues.
+   task Rx_Task
+     with Priority => Config.CRTP_RX_TASK_PRIORITY;
 
-         Has_Succeed := Link_Interface.Send_Packet (Pkt);
-      end loop;
-   end Tx_Task_Type;
+   Last_Packet : Packet;
 
-   ------------------
-   -- Rx_Task_Type --
-   ------------------
-
-   task body Rx_Task_Type is
+   task body Rx_Task is
       Pkt         : Packet;
       Has_Succeed : Boolean;
    begin
       loop
          Link_Interface.Receive_Packet_Blocking (Pkt);
-
+         Last_Packet := Pkt;
          if Callbacks (Pkt.Port) /= null then
             Callbacks (Pkt.Port) (Pkt);
          else
             Port_Queues (Pkt.Port).Enqueue_Item (Pkt, Has_Succeed);
          end if;
       end loop;
-   end Rx_Task_Type;
+   end Rx_Task;
 
    -------------------
    -- Create_Packet --
@@ -248,7 +238,7 @@ package body CRTP is
    is
       pragma Unreferenced (Time_To_Wait);
    begin
-      Tx_Queue.Enqueue_Item (Pkt, Has_Succeed);
+      Has_Succeed := Radiolink.Send_Packet (Pkt);
    end Send_Packet;
 
    -----------------------
@@ -277,7 +267,7 @@ package body CRTP is
 
    procedure Reset is
    begin
-      Tx_Queue.Reset_Queue;
+      null;
       --  TODO: reset the link queues too.
    end Reset;
 

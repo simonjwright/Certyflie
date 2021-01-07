@@ -28,8 +28,6 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with System;
-
 package Console is
 
    --  Initialize the console module.
@@ -49,9 +47,5 @@ package Console is
 
    --  Used by device test procedures
    procedure Put_Line (Message : String; Dummy : out Boolean);
-
-   task type Task_Type (Prio : System.Priority) is
-      pragma Priority (Prio);
-   end Task_Type;
 
 end Console;

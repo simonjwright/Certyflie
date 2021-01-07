@@ -30,17 +30,17 @@
 
 with Ada.Unchecked_Conversion;
 
+with Config;
 with Log;
 with Syslink;
 
 package body Power_Management
-with Refined_State => (Power_Management_State => (Current_Power_Info,
-                                                  Current_Power_State,
-                                                  Battery_Voltage,
-                                                  Battery_Voltage_Min,
-                                                  Battery_Voltage_Max,
-                                                  Battery_Low_Time_Stamp))
 is
+
+   -- Tasks --
+
+   task Power_Management_Task
+     with Priority => Config.POWER_MANAGEMENT_TASK_PRIORITY;
 
    -- Local procedures --
 
@@ -121,7 +121,7 @@ is
    procedure Syslink_Update (Sl_Packet : Syslink.Packet) is
       subtype Power_Data is Types.T_Uint8_Array (1 .. 9);
       function Syslink_Data_To_Power_Syslink_Info is
-         new Ada.Unchecked_Conversion (Power_Data, Power_Syslink_Info);
+        new Ada.Unchecked_Conversion (Power_Data, Power_Syslink_Info);
    begin
       Current_Power_Info :=
         Syslink_Data_To_Power_Syslink_Info (Sl_Packet.Data (1 .. 9));
@@ -201,11 +201,11 @@ is
       --  TODO: find other led feedback for the other power states
    end Set_Power_LEDs;
 
-   ---------------
-   -- Task_Type --
-   ---------------
+   ---------------------------
+   -- Power_Management_Task --
+   ---------------------------
 
-   task body Task_Type is
+   task body Power_Management_Task is
       Now             : Ada.Real_Time.Time;
       Next_Period     : Ada.Real_Time.Time;
       New_Power_State : Power_State;
@@ -237,6 +237,6 @@ is
 
          Next_Period := Now + Ada.Real_Time.Milliseconds (500);
       end loop;
-   end Task_Type;
+   end Power_Management_Task;
 
 end Power_Management;

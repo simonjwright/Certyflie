@@ -27,14 +27,13 @@
 --  however invalidate any other reasons why the executable file  might be  --
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
+
 with Ada.Real_Time;
-with System;
 
 with LEDS;
 with Types;
 
 package Power_Management
-  with Abstract_State => (Power_Management_State)
 is
 
    --  Types
@@ -79,38 +78,20 @@ is
    --  Get the current battery voltage.
    function Get_Battery_Voltage return Float;
 
-   --  Tasks and protected objects
-
-   task type Task_Type (Prio : System.Priority) is
-      pragma Priority (Prio);
-   end Task_Type;
-
 private
 
    --  Global variables and constants
 
    --  Current power information received from nrf51
    --  and current power state.
-   Current_Power_Info  : Power_Syslink_Info
-     with
-     Part_Of => Power_Management_State;
-   Current_Power_State : Power_State
-     with
-       Part_Of => Power_Management_State;
+   Current_Power_Info  : Power_Syslink_Info;
+   Current_Power_State : Power_State;
 
-   --  Current battery voltage, and it's min and max values.
-   Battery_Voltage          : Float
-     with
-       Part_Of => Power_Management_State;
-   Battery_Voltage_Min      : Float := 6.0
-     with
-       Part_Of => Power_Management_State;
-   Battery_Voltage_Max      : Float := 0.0
-     with
-       Part_Of => Power_Management_State;
-   Battery_Low_Time_Stamp   : Ada.Real_Time.Time
-     with
-       Part_Of => Power_Management_State;
+   --  Current battery voltage, and its min and max values.
+   Battery_Voltage          : Float;
+   Battery_Voltage_Min      : Float := 6.0;
+   Battery_Voltage_Max      : Float := 0.0;
+   Battery_Low_Time_Stamp   : Ada.Real_Time.Time;
 
    --  LEDs to switch on according power state.
    Charging_LED  : constant LEDS.Crazyflie_LED := LEDS.Blue_L;

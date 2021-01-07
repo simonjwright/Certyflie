@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -27,13 +28,27 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
-with Ada.Unchecked_Conversion;
+with CRTP;
 
 package body CRTP_Service is
 
-   ----------
-   -- Init --
-   ----------
+   --  Type representing all the available commands for
+   --  CRTP service module.
+   type Command is (Link_Echo,
+                    Link_Source,
+                    Link_Sink,
+                    Link_Other);
+   for Command use (Link_Echo   => 16#00#,
+                    Link_Source => 16#01#,
+                    Link_Sink   => 16#02#,
+                    Link_Other  => 16#03#);
+   for Command'Size use 2;
+
+   --  Handler called when a CRTP packet is received in the CRTP Service
+   --  port queue.
+   procedure Handler (Packet : CRTP.Packet);
+
+   Is_Init             : Boolean := False;
 
    procedure Init is
    begin
@@ -47,25 +62,12 @@ package body CRTP_Service is
       Is_Init := True;
    end Init;
 
-   -------------
-   -- Handler --
-   -------------
-
    procedure Handler (Packet : CRTP.Packet)
    is
-      Cmd         : Command;
+      Cmd         : constant Command := Command'Val (Packet.Channel);
       Tx_Packet   : CRTP.Packet := Packet;
       Has_Succeed : Boolean;
-
-      -----------------------------
-      -- CRTP_Channel_To_Command --
-      -----------------------------
-
-      function CRTP_Channel_To_Command is
-        new Ada.Unchecked_Conversion (CRTP.Channel_T, Command);
    begin
-      Cmd := CRTP_Channel_To_Command (Packet.Channel);
-
       case Cmd is
          when Link_Echo =>
             CRTP.Send_Packet (Tx_Packet, Has_Succeed);

@@ -30,6 +30,8 @@
 
 with Ada.Synchronous_Task_Control;
 with Ada.Unchecked_Conversion;
+
+with Config;
 with UART_Syslink;
 
 package body Syslink is
@@ -170,11 +172,13 @@ package body Syslink is
       end if;
    end Route_Incoming_Packet;
 
-   ---------------
-   -- Task_Type --
-   ---------------
+   ------------------
+   -- Syslink_Task --
+   ------------------
 
-   task body Task_Type is
+   task Syslink_Task with Priority => Config.SYSLINK_TASK_PRIORITY;
+
+   task body Syslink_Task is
       Rx_State     : Rx_States := WAIT_FOR_FIRST_START;
       Rx_Sl_Packet : Packet;
       Rx_Byte      : Types.T_Uint8;
@@ -239,6 +243,6 @@ package body Syslink is
                Rx_State := WAIT_FOR_FIRST_START;
          end case;
       end loop;
-   end Task_Type;
+   end Syslink_Task;
 
 end Syslink;

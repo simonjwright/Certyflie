@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2020, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -32,9 +33,6 @@ with Ada.Real_Time;
 with Crazyflie_System;
 with Config;
 
-with Tasks;
-pragma Unreferenced (Tasks);
-
 ----------
 -- Main --
 ----------
@@ -59,7 +57,7 @@ procedure Main is
      External_Name => "_environment_task_secondary_stack_size";
 
    --  For ordinary tasks.
-   Default_Storage_Size : constant Natural := 4096
+   Default_Storage_Size : constant Natural := 5120
    with
      Export,
      Convention => Ada,

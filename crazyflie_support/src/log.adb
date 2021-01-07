@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2018, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -33,6 +34,7 @@ with Ada.Real_Time;
 with Ada.Real_Time.Timing_Events;
 with Ada.Strings.Bounded;
 
+with Config;
 with CRTP;
 with Types;
 
@@ -230,6 +232,9 @@ package body Log is
    subtype Time_Stamp is Types.T_Uint8_Array (1 .. 3);
 
    --  Tasks and protected objects
+
+   task Log_Task
+     with Priority => Config.LOG_TASK_PRIORITY;
 
    protected Block_Timing_Event_Handler is
       pragma Interrupt_Priority;
@@ -448,17 +453,8 @@ package body Log is
 
    procedure CRTP_Handler (Packet : CRTP.Packet)
    is
-      ---------------------------------
-      -- CRTP_Channel_To_Channel --
-      ---------------------------------
-
-      function CRTP_Channel_To_Channel is new Ada.Unchecked_Conversion
-        (CRTP.Channel_T, Channel);
-
-      Ch : Channel;
+      Ch : constant Channel := Channel'Val (Packet.Channel);
    begin
-      Ch := CRTP_Channel_To_Channel (Packet.Channel);
-
       case Ch is
          when TOC_CH =>
             TOC_Process (Packet);
@@ -475,23 +471,8 @@ package body Log is
 
    procedure TOC_Process (Packet : CRTP.Packet)
    is
-      --------------------------------
-      -- T_Uint8_To_TOC_Command --
-      --------------------------------
-
-      function T_Uint8_To_TOC_Command is new Ada.Unchecked_Conversion
-        (Types.T_Uint8, TOC_Command);
-
-      ------------------------------
-      -- CRTP_Append_T_Uint8_Data --
-      ------------------------------
-
       procedure CRTP_Append_T_Uint8_Data is new CRTP.Append_Data
         (Types.T_Uint8);
-
-      -------------------------------
-      -- Append_T_Uint32_Data --
-      -------------------------------
 
       procedure CRTP_Append_T_Uint32_Data is new CRTP.Append_Data
         (Types.T_Uint32);
@@ -507,12 +488,12 @@ package body Log is
          return Types.T_Uint32 (TOC_CRC (Data));
       end Data_CRC32;
 
-      Command        : TOC_Command;
+      Command        : constant TOC_Command
+        := TOC_Command'Val (Packet.Data_1 (1));
       Packet_Handler : CRTP.Packet_Handler;
       Has_Succeed    : Boolean;
       pragma Unreferenced (Has_Succeed);
    begin
-      Command := T_Uint8_To_TOC_Command (Packet.Data_1 (1));
       Packet_Handler := CRTP.Create_Packet
         (CRTP.PORT_LOG, Channel'Enum_Rep (TOC_CH));
       CRTP_Append_T_Uint8_Data
@@ -968,7 +949,7 @@ package body Log is
 
    end Block_Timing_Event_Handler;
 
-   task body Logger is
+   task body Log_Task is
       Client_Block_ID : Types.T_Uint8;
       Blk_ID          : Block_ID;
       Variable        : System.Address;
@@ -1113,6 +1094,6 @@ package body Log is
          end if;
 
       end loop;
-   end Logger;
+   end Log_Task;
 
 end Log;

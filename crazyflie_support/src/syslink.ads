@@ -30,8 +30,6 @@
 
 --  Implements the link between the two Crazyflie MCUs.
 
-with System;
-
 with Types;
 
 package Syslink is
@@ -116,11 +114,5 @@ package Syslink is
 
    --  Unregister the callback for this group.
    procedure Unregister_Callback (Group : Packet_Group_Type);
-
-   --  Tasks and protected objects
-
-   task type Task_Type (Prio : System.Priority) is
-      pragma Priority (Prio);
-   end Task_Type;
 
 end Syslink;

@@ -1,5 +1,6 @@
 LEDS
 UInt10
+*CRTP
 *LPS25H
 *NSS
 *OW

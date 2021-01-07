@@ -124,9 +124,9 @@ package body Radiolink is
       Rx_Queue.Await_Item_To_Dequeue (Packet);
    end Receive_Packet_Blocking;
 
-   ---------------------------
+   -----------------
    -- Send_Packet --
-   ---------------------------
+   -----------------
 
    function Send_Packet (Packet : CRTP.Packet) return Boolean
    is

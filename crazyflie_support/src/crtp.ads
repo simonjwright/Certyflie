@@ -39,9 +39,6 @@ package CRTP is
    --  Constants
 
    MAX_DATA_SIZE : constant := 30;
-   TX_QUEUE_SIZE : constant := 60;
-   RX_QUEUE_SIZE : constant := 2;
-   NBR_OF_PORTS  : constant := 16;
 
    --  Types
 
@@ -82,7 +79,7 @@ package CRTP is
    --  Type for CRTP packet data.
    subtype Data_T is Types.T_Uint8_Array (1 .. MAX_DATA_SIZE);
 
-   --  Type used to represenet a raw CRTP Packet (Header + Data).
+   --  Type used to represent a raw CRTP Packet (Header + Data).
    subtype Raw_T is Types.T_Uint8_Array (1 .. MAX_DATA_SIZE + 1);
 
    --  Type listing the different representations for the union type
@@ -194,20 +191,10 @@ package CRTP is
    --  Used to know if we are still connected.
    function Is_Connected return Boolean;
 
-   --  Task in charge of transmitting the messages in the Tx Queue
-   --  to the link layer.
-   task type Tx_Task_Type (Prio : System.Priority) is
-      pragma Priority (Prio);
-   end Tx_Task_Type;
-
-   --  Task in charge of dequeuing the messages in the Rx_queue
-   --  to put them in the Port_Queues.
-   task type Rx_Task_Type (Prio : System.Priority) is
-      pragma Priority (Prio);
-   end Rx_Task_Type;
-
 private
-   package Queue is new Generic_Queue (Packet);
+
+   RX_QUEUE_SIZE : constant := 2;
+   NBR_OF_PORTS  : constant := 16;
 
    --  Types
    type Packet_Handler is record
@@ -215,13 +202,11 @@ private
       Index : Positive;
    end record;
 
+   package Queue is new Generic_Queue (Packet);
+
    --  Tasks and protected objects
 
    pragma Warnings (Off,  "violate restriction No_Implicit_Heap_Allocation");
-   --  Protected object queue for transmission.
-   Tx_Queue : Queue.Protected_Queue
-     (System.Interrupt_Priority'Last, TX_QUEUE_SIZE);
-
    --  Protected object queue for reception.
    Rx_Queue : Queue.Protected_Queue
      (System.Interrupt_Priority'Last, RX_QUEUE_SIZE);

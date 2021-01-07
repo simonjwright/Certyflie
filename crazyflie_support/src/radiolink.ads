@@ -29,19 +29,13 @@
 ------------------------------------------------------------------------------
 
 with CRTP;
-with Syslink;
 with Types;
 
 private with System;
+private with Syslink;
 private with Generic_Queue;
 
 package Radiolink is
-
-   --  Constants
-
-   --  Size of transmission/receptions queues.
-   TX_QUEUE_SIZE : constant := 3;
-   RX_QUEUE_SIZE : constant := 5;
 
    --  Procedures and functions
 
@@ -65,6 +59,10 @@ package Radiolink is
    procedure Receive_Packet_Blocking (Packet : out CRTP.Packet);
 
 private
+
+   --  Size of transmission/receptions queues.
+   TX_QUEUE_SIZE : constant := 60;
+   RX_QUEUE_SIZE : constant := 60;
 
    package Syslink_Queue is new Generic_Queue (Syslink.Packet);
    package CRTP_Queue is new Generic_Queue (CRTP.Packet);

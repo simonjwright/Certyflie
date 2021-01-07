@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2017, AdaCore                          --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -34,10 +35,15 @@ package Config is
    QUAD_FORMATION_X : constant Boolean := True;
 
    --  Task priorities
-   MAIN_TASK_PRIORITY      : constant System.Priority := 4;
-   CRTP_RXTX_TASK_PRIORITY : constant System.Priority := 2;
-   SYSLINK_TASK_PRIORITY   : constant System.Priority := 3;
-   LOG_TASK_PRIORITY       : constant System.Priority := 1;
-   PM_TASK_PRIORITY        : constant System.Priority := 0;
+   MAIN_TASK_PRIORITY             : constant System.Priority := 5;
+   SENSORS_TASK_PRIORITY          : constant System.Priority := 4;
+   CRTP_RX_TASK_PRIORITY          : constant System.Priority := 2;
+   SYSLINK_TASK_PRIORITY          : constant System.Priority := 3;
+   CONSOLE_TASK_PRIORITY          : constant System.Priority := 1;
+   LOG_TASK_PRIORITY              : constant System.Priority := 1;
+   POWER_MANAGEMENT_TASK_PRIORITY : constant System.Priority := 0;
+   KALMAN_TASK_PRIORITY           : constant System.Priority := 2;
+   ZRANGER_TASK_PRIORITY          : constant System.Priority := 2;
+   FLOW_TASK_PRIORITY             : constant System.Priority := 3;
 
 end Config;
