@@ -44,17 +44,11 @@ procedure Main is
    --  which aren't enough for the Certyflie code.
 
    --  For the environment task.
-   Environment_Task_Storage_Size : constant Natural := 10240
+   Environment_Task_Storage_Size : constant Natural := 5120
    with
      Export,
      Convention => Ada,
      External_Name => "_environment_task_storage_size";
-
-   Environment_Task_Secondary_Stack_Size : constant Natural := 5120
-   with
-     Export,
-     Convention => Ada,
-     External_Name => "_environment_task_secondary_stack_size";
 
    --  For ordinary tasks.
    Default_Storage_Size : constant Natural := 5120
