@@ -49,8 +49,8 @@ package body CRTP is
    Last_Packet : Packet;
 
    task body Rx_Task is
-      Pkt         : Packet;
-      Has_Succeed : Boolean;
+      Pkt     : Packet;
+      Success : Boolean;
    begin
       loop
          Link_Interface.Receive_Packet_Blocking (Pkt);
@@ -58,7 +58,7 @@ package body CRTP is
          if Callbacks (Pkt.Port) /= null then
             Callbacks (Pkt.Port) (Pkt);
          else
-            Port_Queues (Pkt.Port).Enqueue_Item (Pkt, Has_Succeed);
+            Port_Queues (Pkt.Port).Enqueue_Item (Pkt, Success);
          end if;
       end loop;
    end Rx_Task;
@@ -231,14 +231,14 @@ package body CRTP is
    -----------------
 
    procedure Send_Packet
-     (Pkt          :     Packet;
-      Has_Succeed  : out Boolean;
-      Time_To_Wait :     Ada.Real_Time.Time_Span
+     (Pkt          : Packet;
+      One_Off      : Boolean := False;
+      Time_To_Wait : Ada.Real_Time.Time_Span
         := Ada.Real_Time.Time_Span_Zero)
    is
       pragma Unreferenced (Time_To_Wait);
    begin
-      Has_Succeed := Radiolink.Send_Packet (Pkt);
+      Radiolink.Send_Packet (Pkt, One_Off => One_Off);
    end Send_Packet;
 
    -----------------------

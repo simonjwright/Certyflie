@@ -476,14 +476,9 @@ package body Parameter is
          end;
       end if;
 
-      declare
-         Succeeded : Boolean;
-      begin
-         CRTP.Send_Packet
-           (CRTP.Get_Packet_From_Handler (Packet_Handler),
-            Has_Succeed => Succeeded);
-         pragma Assert (Succeeded, "parameter read response not sent");
-      end;
+      CRTP.Send_Packet
+        (CRTP.Get_Packet_From_Handler (Packet_Handler),
+         One_Off => True);
    end Read_Process;
 
    -------------------
@@ -501,15 +496,13 @@ package body Parameter is
                                   Channel'Enum_Rep (WRITE_CH));
             procedure CRTP_Append_T_Uint8_Data is new CRTP.Append_Data
               (Types.T_Uint8);
-            Succeeded : Boolean;
          begin
             CRTP_Append_T_Uint8_Data (Packet_Handler, Types.T_Uint8'Last);
             CRTP_Append_T_Uint8_Data (Packet_Handler, ID);
             CRTP_Append_T_Uint8_Data (Packet_Handler, ENOENT);
             CRTP.Send_Packet
               (CRTP.Get_Packet_From_Handler (Packet_Handler),
-               Has_Succeed => Succeeded);
-            pragma Assert (Succeeded, "parameter bad write response not sent");
+               One_Off => True);
          end;
       else
          declare
@@ -558,12 +551,7 @@ package body Parameter is
          end;
       end if;
 
-      declare
-         Succeeded : Boolean;
-      begin
-         CRTP.Send_Packet (Packet, Has_Succeed => Succeeded);
-         pragma Assert (Succeeded, "parameter write response not sent");
-      end;
+      CRTP.Send_Packet (Packet, One_Off => True);
    end Write_Process;
 
 end Parameter;

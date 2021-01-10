@@ -28,6 +28,7 @@
 --  covered by the  GNU Public License.                                     --
 ------------------------------------------------------------------------------
 
+with Ada.Real_Time;
 with Ada.Unchecked_Conversion;
 
 with Crazyflie_Config;
@@ -128,21 +129,32 @@ package body Radiolink is
    -- Send_Packet --
    -----------------
 
-   function Send_Packet (Packet : CRTP.Packet) return Boolean
+   procedure Send_Packet (Packet : CRTP.Packet;
+                          One_Off : Boolean := False)
    is
       Sl_Packet : Syslink.Packet;
-      Has_Succeed : Boolean;
-
       use type Types.T_Uint8;
+      use type Ada.Real_Time.Time;
    begin
       Sl_Packet.Length := Packet.Size + 1;
       Sl_Packet.Slp_Type := Syslink.RADIO_RAW;
       Sl_Packet.Data (1 .. 31) := Packet.Raw_Pkt;
 
       --  Try to enqueue the Syslink packet
-      Tx_Queue.Enqueue_Item (Sl_Packet, Has_Succeed);
-
-      return Has_Succeed;
+      if One_Off then
+         loop
+            declare
+               Success : Boolean;
+            begin
+               Tx_Queue.Enqueue_One_Off_Item (Sl_Packet, Success => Success);
+               exit when Success;
+               delay until
+                 Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (5);
+            end;
+         end loop;
+      else
+         Tx_Queue.Enqueue_Continuous_Item (Sl_Packet);
+      end if;
    end Send_Packet;
 
    --------------------------------
@@ -153,7 +165,7 @@ package body Radiolink is
    is
       Tx_Sl_Packet   : Syslink.Packet;
       Rx_CRTP_Packet : CRTP.Packet;
-      Has_Succeed    : Boolean;
+      Success        : Boolean;
 
       use type Types.T_Uint8;
       use type Syslink.Packet_Type;
@@ -166,15 +178,15 @@ package body Radiolink is
          --  should really only copy significant bytes, but ...
 
          --  Enqueue the received packet
-         Rx_Queue.Enqueue_Item (Rx_CRTP_Packet, Has_Succeed);
-         if Has_Succeed then
+         Rx_Queue.Enqueue_Item (Rx_CRTP_Packet, Success);
+         if Success then
             Green_L.Set;
          end if;
 
          --  If a radio packet is received, one can be sent
-         Tx_Queue.Dequeue_Item (Tx_Sl_Packet, Has_Succeed);
+         Tx_Queue.Dequeue_Item (Tx_Sl_Packet, Success);
 
-         if Has_Succeed then
+         if Success then
             Red_L.Set;
             Syslink.Send_Packet (Tx_Sl_Packet);
          end if;
@@ -183,5 +195,51 @@ package body Radiolink is
          RSSI := Rx_Sl_Packet.Data (1);
       end if;
    end Syslink_Dispatch;
+
+   --------------
+   -- Tx_Queue --
+   --------------
+
+   protected body Tx_Queue is
+      procedure Enqueue_One_Off_Item (Item    :     Syslink.Packet;
+                                      Success : out Boolean)
+      is
+      begin
+         Success := not Syslink_Queue.Is_Full (One_Off_Queue);
+         if Success then
+            Syslink_Queue.Enqueue (One_Off_Queue, Item);
+         end if;
+      end Enqueue_One_Off_Item;
+
+      procedure Enqueue_Continuous_Item (Item : Syslink.Packet)
+      is
+      begin
+         if not Syslink_Queue.Is_Full (Continuous_Queue) then
+            Syslink_Queue.Enqueue (Continuous_Queue, Item);
+         end if;
+      end Enqueue_Continuous_Item;
+
+      procedure Dequeue_Item (Item    : out Syslink.Packet;
+                              Success : out Boolean)
+      is
+      begin
+         if not Syslink_Queue.Is_Empty (One_Off_Queue) then
+            Syslink_Queue.Dequeue (One_Off_Queue, Item);
+            Success := True;
+         elsif not Syslink_Queue.Is_Empty (Continuous_Queue) then
+            Syslink_Queue.Dequeue (Continuous_Queue, Item);
+            Success := True;
+         else
+            Success := False;
+         end if;
+      end Dequeue_Item;
+
+      procedure Reset_Queue
+      is
+      begin
+         Syslink_Queue.Reset (One_Off_Queue);
+         Syslink_Queue.Reset (Continuous_Queue);
+      end Reset_Queue;
+   end Tx_Queue;
 
 end Radiolink;

@@ -64,18 +64,18 @@ package Log is
    --  Create a log group if there is any space left and if the name
    --  is not too long.
    procedure Create_Group
-     (Name        : String;
-      Group_ID    : out Natural;
-      Has_Succeed : out Boolean)
+     (Name     :     String;
+      Group_ID : out Natural;
+      Success  : out Boolean)
    with Pre => Name'Length <= Max_Name_Length;
 
    --  Append a variable to a log group.
    procedure Append_Variable_To_Group
-     (Group_ID    : Natural;
-      Name        : String;
-      Typ         : Variable_Type;
-      Variable    : System.Address;
-      Has_Succeed : out Boolean)
+     (Group_ID :     Natural;
+      Name     :     String;
+      Typ      :     Variable_Type;
+      Variable :     System.Address;
+      Success  : out Boolean)
      with Pre => Name'Length <= Max_Name_Length;
 
    --  Add a variable to a log group, creating the group if necessary.

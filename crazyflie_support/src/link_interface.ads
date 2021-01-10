@@ -41,9 +41,10 @@ package Link_Interface is
 
    --  Send a CRTP packet using the link layer specified in
    --  the 'Config' package.
-   --  Return 'True' if the packet is correctly sent, 'False'
-   --  ortherwise.
-   function Send_Packet (Packet : CRTP.Packet) return Boolean;
+   --  If One_Off is True, the packet is important and should not be
+   --  dropped.
+   procedure Send_Packet (Packet : CRTP.Packet;
+                         One_Off : Boolean := False);
 
    --  Receive a CRTP packet using the link layer specified in
    --  the 'Config' package.

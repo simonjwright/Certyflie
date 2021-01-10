@@ -108,8 +108,6 @@ package body Memory is
 
       Command        : Memory_Command;
       Packet_Handler : CRTP.Packet_Handler;
-      Has_Succeed    : Boolean;
-      pragma Unreferenced (Has_Succeed);
    begin
       Command := T_Uint8_To_Memory_Command (Packet.Data_1 (1));
 
@@ -127,7 +125,7 @@ package body Memory is
               (Packet_Handler, 0);
             CRTP.Send_Packet
               (CRTP.Get_Packet_From_Handler (Packet_Handler),
-               Has_Succeed);
+               One_Off => True);
          when CMD_GET_INFO =>
             null;
       end case;

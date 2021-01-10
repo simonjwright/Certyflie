@@ -52,7 +52,8 @@ package Radiolink is
    procedure Set_Data_Rate (Data_Rate : Types.T_Uint8);
 
    --  Send a packet to Radiolink layer.
-   function Send_Packet (Packet : CRTP.Packet) return Boolean;
+   procedure Send_Packet (Packet : CRTP.Packet;
+                          One_Off : Boolean := False);
 
    --  Receive a packet from Radiolink layer.
    --  Putting the task calling it in sleep mode until a packet is received.
@@ -74,11 +75,38 @@ private
 
    --  Tasks and protected objects
 
+   --  This queue gives preference to one-off packets, which we don't
+   --  want to drop.
+   protected Tx_Queue is
+      --  If Enqueue_One_Off_Item fails, the caller can choose to
+      --  delay before trying again.
+      procedure Enqueue_One_Off_Item (Item    : Syslink.Packet;
+                                      Success : out Boolean);
+
+      --  Enqueue_Continuous_Item will just drop the itm if it can't
+      --  be queued.
+      procedure Enqueue_Continuous_Item (Item : Syslink.Packet);
+
+      procedure Dequeue_Item (Item    : out Syslink.Packet;
+                              Success : out Boolean);
+
+      procedure Reset_Queue;
+   private
+      One_Off_Queue    : Syslink_Queue.T_Queue (TX_QUEUE_SIZE / 2);
+      Continuous_Queue : Syslink_Queue.T_Queue (TX_QUEUE_SIZE / 2);
+   end Tx_Queue;
+
    pragma Warnings (Off,  "violate restriction No_Implicit_Heap_Allocation");
 
-   --  Protected object queue used for transmission.
-   Tx_Queue : Syslink_Queue.Protected_Queue
-     (System.Interrupt_Priority'Last, TX_QUEUE_SIZE);
+   --  --  Protected object queue used for transmission of messages that
+   --  --  shouldn't be dropped.
+   --  One_Off_Queue : Syslink_Queue.Protected_Queue
+   --    (System.Interrupt_Priority'Last, TX_QUEUE_SIZE / 2);
+
+   --  --  Protected object queue used for transmission of messages that
+   --  --  can be dropped without problems.
+   --  Continuous_Queue : Syslink_Queue.Protected_Queue
+   --    (System.Interrupt_Priority'Last, TX_QUEUE_SIZE / 2);
 
    --  Protected object queue used for reception.
    Rx_Queue : CRTP_Queue.Protected_Queue

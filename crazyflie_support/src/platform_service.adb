@@ -60,13 +60,12 @@ package body Platform_Service is
    -------------
 
    procedure Handler (Packet : CRTP.Packet) is
-      Has_Succeed : Boolean;
    begin
       case Packet.Channel is
          when Platform_Channel'Enum_Rep (PLAT_COMMAND) =>
             Command_Process
               (Packet.Data_1 (1), Packet.Data_1 (2 .. Packet.Data_1'Last));
-            CRTP.Send_Packet (Packet, Has_Succeed);
+            CRTP.Send_Packet (Packet, One_Off => True);
          when others =>
             null;
       end case;

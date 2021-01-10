@@ -30,7 +30,6 @@
 
 with Config;
 with CRTP;
-with Ada.Real_Time;
 
 package body Console is
 
@@ -152,15 +151,10 @@ package body Console is
         := CRTP.Create_Packet (CRTP.PORT_CONSOLE, 0);
 
       procedure Send_Message is
-         Succeeded : Boolean;
-         use type Ada.Real_Time.Time;
       begin
-         loop
-            CRTP.Send_Packet
-              (CRTP.Get_Packet_From_Handler (Message_To_Print), Succeeded);
-            exit when Succeeded;
-            delay until Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (10);
-         end loop;
+         CRTP.Send_Packet
+           (CRTP.Get_Packet_From_Handler (Message_To_Print),
+            One_Off => True);
          CRTP.Reset_Handler (Message_To_Print);
       end Send_Message;
 

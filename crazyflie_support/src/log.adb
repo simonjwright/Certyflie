@@ -351,12 +351,12 @@ package body Log is
    ----------------------
 
    procedure Create_Group
-     (Name        : String;
-      Group_ID    : out Natural;
-      Has_Succeed : out Boolean)
+     (Name     :     String;
+      Group_ID : out Natural;
+      Success  : out Boolean)
    is
    begin
-      Has_Succeed := False;
+      Success := False;
 
       if Data.Groups.Length = MAX_NUMBER_OF_GROUPS then
          return;
@@ -368,7 +368,7 @@ package body Log is
 
       Group_ID := Data.Groups.Length - 1;
 
-      Has_Succeed := True;
+      Success := True;
    end Create_Group;
 
    ----------------------------------
@@ -376,16 +376,16 @@ package body Log is
    ----------------------------------
 
    procedure Append_Variable_To_Group
-     (Group_ID    : Natural;
-      Name        : String;
-      Typ         : Variable_Type;
-      Variable    : System.Address;
-      Has_Succeed : out Boolean)
+     (Group_ID :     Natural;
+      Name     :     String;
+      Typ      :     Variable_Type;
+      Variable :     System.Address;
+      Success  : out Boolean)
    is
       Grp : Group
       renames Data.Groups.Element_Access (Group_ID).all;
    begin
-      Has_Succeed := False;
+      Success := False;
 
       if Grp.Variables.Length = MAX_NUMBER_OF_VARIABLES_PER_GROUP
       then
@@ -399,7 +399,7 @@ package body Log is
 
       Grp.Variables.Append (Data.Variables.Length - 1);
 
-      Has_Succeed := True;
+      Success := True;
    end Append_Variable_To_Group;
 
    ----------------------
@@ -430,18 +430,18 @@ package body Log is
 
       if Group_ID not in Group_Identifier then
          --  This will be a new group; create it.
-         Create_Group (Name        => Group,
-                       Group_ID    => Group_ID,
-                       Has_Succeed => Success);
+         Create_Group (Name     => Group,
+                       Group_ID => Group_ID,
+                       Success  => Success);
       end if;
 
       --  Add the variable (if all OK so far).
       if Success then
-         Append_Variable_To_Group (Group_ID    => Group_ID,
-                                   Name        => Name,
-                                   Typ         => Typ,
-                                   Variable    => Variable,
-                                   Has_Succeed => Success);
+         Append_Variable_To_Group (Group_ID => Group_ID,
+                                   Name     => Name,
+                                   Typ      => Typ,
+                                   Variable => Variable,
+                                   Success  => Success);
       end if;
    end Add_Variable;
 
@@ -491,8 +491,6 @@ package body Log is
       Command        : constant TOC_Command
         := TOC_Command'Val (Packet.Data_1 (1));
       Packet_Handler : CRTP.Packet_Handler;
-      Has_Succeed    : Boolean;
-      pragma Unreferenced (Has_Succeed);
    begin
       Packet_Handler := CRTP.Create_Packet
         (CRTP.PORT_LOG, Channel'Enum_Rep (TOC_CH));
@@ -546,7 +544,7 @@ package body Log is
       end case;
       CRTP.Send_Packet
         (CRTP.Get_Packet_From_Handler (Packet_Handler),
-         Has_Succeed);
+         One_Off => True);
    end TOC_Process;
 
    -------------------------
@@ -565,8 +563,6 @@ package body Log is
       Tx_Packet   : CRTP.Packet := Packet;
       Command     : Control_Command;
       Answer      : Types.T_Uint8;
-      Has_Succeed : Boolean;
-      pragma Unreferenced (Has_Succeed);
 
       use type Types.T_Uint8;
    begin
@@ -596,7 +592,7 @@ package body Log is
 
       Tx_Packet.Data_1 (3) := Answer;
       Tx_Packet.Size := 3;
-      CRTP.Send_Packet (Tx_Packet, Has_Succeed);
+      CRTP.Send_Packet (Tx_Packet, One_Off => True);
    end Control_Process;
 
    ----------------------
@@ -955,7 +951,7 @@ package body Log is
       Variable        : System.Address;
       Time_Stmp       : Time_Stamp;
       Packet_Handler  : CRTP.Packet_Handler;
-      Has_Succeed     : Boolean
+      Success         : Boolean
         with Unreferenced;
 
       --  Procedures used to append log data with different types
@@ -1085,8 +1081,8 @@ package body Log is
             end loop;
 
             CRTP.Send_Packet
-              (Pkt         => CRTP.Get_Packet_From_Handler (Packet_Handler),
-               Has_Succeed => Has_Succeed);
+              (Pkt     => CRTP.Get_Packet_From_Handler (Packet_Handler),
+               One_Off => False);
 
          else -- CRTP no longer connected
             Reset;

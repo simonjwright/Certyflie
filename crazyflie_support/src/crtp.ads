@@ -166,12 +166,13 @@ package CRTP is
      (Pkt     : out Packet;
       Port_ID :     Port_T);
 
-   --  Send a packet, with a given Timeout
+   --  Send a packet, with a given Timeout.
+   --  If One_Off is True, the packet is important and should not be
+   --  dropped.
    procedure Send_Packet
-     (Pkt          :     Packet;
-      Has_Succeed  : out Boolean;
-      Time_To_Wait :     Ada.Real_Time.Time_Span
-        := Ada.Real_Time.Time_Span_Zero);
+     (Pkt          : Packet;
+      One_Off      : Boolean                 := False;
+      Time_To_Wait : Ada.Real_Time.Time_Span := Ada.Real_Time.Time_Span_Zero);
 
    --  Register a callback to be called when a packet is received in
    --  the port queue

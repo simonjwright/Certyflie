@@ -370,17 +370,6 @@ package body Flow_Deck is
             others    => <>);
       use Parameter;
    begin
-      --  Create_Parameter_Group ("motion",
-      --                          Group_ID => Motion_Group_ID;
-      --  Append_Parameter_Variable_To_Group
-      --    (Motion_Group_ID,
-      --     Name => "disable",
-      --     Parameter_Type => Read_Only_Boolean,
-      --     Variable => Motion_Disabled'Address,
-      --     Has_Succeed => Success);
-      --  pragma Assert (Success,
-      --                 "couldn't create 'motion.disable' parameter");
-
       Create_Parameter_Group ("deck",
                               Group_ID => Deck_Group_ID);
 

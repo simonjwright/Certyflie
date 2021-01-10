@@ -2,6 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
+--          Copyright (C) 2020, Simon Wright <simon@pushface.org>           --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -106,29 +107,29 @@ package body Generic_Queue is
    protected body Protected_Queue is
 
       procedure Enqueue_Item
-        (Item         : T_Element;
-         Has_Succeed  : out Boolean) is
+        (Item    :     T_Element;
+         Success : out Boolean) is
       begin
          if not Is_Full (Queue) then
-            Has_Succeed := True;
+            Success := True;
             Enqueue (Queue, Item);
             Data_Available := True;
          else
-            Has_Succeed := False;
+            Success := False;
          end if;
 
       end Enqueue_Item;
 
       procedure Dequeue_Item
-        (Item        : out T_Element;
-         Has_Succeed : out Boolean) is
+        (Item    : out T_Element;
+         Success : out Boolean) is
       begin
          if not Is_Empty (Queue) then
-            Has_Succeed := True;
+            Success := True;
             Dequeue (Queue, Item);
             Data_Available := not Is_Empty (Queue);
          else
-            Has_Succeed := False;
+            Success := False;
          end if;
       end Dequeue_Item;
 

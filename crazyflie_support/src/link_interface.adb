@@ -58,15 +58,16 @@ package body Link_Interface is
    -- Send_Packet --
    ----------------------
 
-   function Send_Packet (Packet : CRTP.Packet) return Boolean is
+   procedure Send_Packet (Packet : CRTP.Packet;
+                          One_Off : Boolean := False) is
       use Crazyflie_Config;
    begin
       case LINK_LAYER_TYPE is
          when RADIO_LINK =>
-            return Radiolink.Send_Packet (Packet);
+            Radiolink.Send_Packet (Packet, One_Off => One_Off);
          when others =>
             --  Other link layers not implemented yet.
-            return False;
+            null;
       end case;
    end Send_Packet;
 

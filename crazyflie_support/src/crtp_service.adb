@@ -66,15 +66,14 @@ package body CRTP_Service is
    is
       Cmd         : constant Command := Command'Val (Packet.Channel);
       Tx_Packet   : CRTP.Packet := Packet;
-      Has_Succeed : Boolean;
    begin
       case Cmd is
          when Link_Echo =>
-            CRTP.Send_Packet (Tx_Packet, Has_Succeed);
+            CRTP.Send_Packet (Tx_Packet, One_Off => False);
          when Link_Source =>
             Tx_Packet.Size := CRTP.MAX_DATA_SIZE;
             Tx_Packet.Data_1 := (others => 0);
-            CRTP.Send_Packet (Tx_Packet, Has_Succeed);
+            CRTP.Send_Packet (Tx_Packet, One_Off => False);
          when others =>
             --  Null packets
             null;
