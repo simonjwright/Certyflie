@@ -2,7 +2,7 @@
 --                              Certyflie                                   --
 --                                                                          --
 --                     Copyright (C) 2015-2016, AdaCore                     --
---           Copyright (C) 2020, Simon Wright <simon@pushface.org>          --
+--        Copyright (C) 2020-2021, Simon Wright <simon@pushface.org>        --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -79,6 +79,9 @@ package body IMU is
       --  This should be the first call that needs to affect
       --  I2C_Device_SO, which is initially False. On conclusion, we
       --  need to set it True.
+      pragma Assert
+        (not Ada.Synchronous_Task_Control.Current_State (I2C_Device_SO),
+         "IMU: I2C_Device_SO already True");
 
       STM32.Board.Initialize_I2C_GPIO
         (STM32.I2C.I2C_Port (STM32.Board.MPU_Device.Port.all));
