@@ -1,6 +1,37 @@
+--                              Certyflie                                   --
+--                                                                          --
+--           Copyright (C) 2021, Simon Wright <simon@pushface.org>          --
+--                                                                          --
+--  This library is free software;  you can redistribute it and/or modify   --
+--  it under terms of the  GNU General Public License  as published by the  --
+--  Free Software  Foundation;  either version 3,  or (at your  option) any --
+--  later version. This library is distributed in the hope that it will be  --
+--  useful, but WITHOUT ANY WARRANTY;  without even the implied warranty of --
+--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                    --
+--                                                                          --
+--  As a special exception under Section 7 of GPL version 3, you are        --
+--  granted additional permissions described in the GCC Runtime Library     --
+--  Exception, version 3.1, as published by the Free Software Foundation.   --
+--                                                                          --
+--  You should have received a copy of the GNU General Public License and   --
+--  a copy of the GCC Runtime Library Exception along with this program;    --
+--  see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see   --
+--  <http://www.gnu.org/licenses/>.                                         --
+--                                                                          --
+--  As a special exception, if other files instantiate generics from this   --
+--  unit, or you link this unit with other files to produce an executable,  --
+--  this  unit  does not  by itself cause  the resulting executable to be   --
+--  covered by the GNU General Public License. This exception does not      --
+--  however invalidate any other reasons why the executable file  might be  --
+--  covered by the  GNU Public License.                                     --
+------------------------------------------------------------------------------
+
 with Ada.Numerics.Elementary_Functions;
 
 with Console;
+
+--  for data accumulation
+with Kalman_Core.Data;
 
 package body Kalman_Core is
 
@@ -38,18 +69,18 @@ package body Kalman_Core is
       Acc_Z           : Float;
       Vel             : Float;
       Pos             : Float;
-      Baro            : Float; -- metres???
       Att             : Float; -- radians
+      Baro            : Float; -- metres???
       Gyro_Roll_Pitch : Float; -- radians/sec
       Gyro_Yaw        : Float; -- radians/sec
    end record;
    Process_Noise : constant Process_Noise_T
      := (Acc_X_Y         => 0.5,
          Acc_Z           => 1.0,
-         Vel             => 1.0,  -- was 0.0
-         Pos             => 5.0,  -- was 0.0
-         Baro            => 2.0,
+         Vel             => 0.0,
+         Pos             => 0.0,
          Att             => 0.0,
+         Baro            => 2.0,
          Gyro_Roll_Pitch => 0.1,
          Gyro_Yaw        => 0.1);
 
@@ -59,20 +90,20 @@ package body Kalman_Core is
    begin
       Console.Put_Line ("Resetting Kalman state");
 
-      This.S := (others => 0.0);
+      This.S := (others => 0.0);  -- XXX The C only resets X .. Z
+      This.Q := Initial_Quaternion;
       This.R := Unit_Matrix
         (This.R'Length (1), This.R'First (1), This.R'First (2));
-      This.Q := Initial_Quaternion;
 
       This.P := (others => (others => 0.0));
 
       This.P (X, X) := Initial_SD_Position_XY**2;
       This.P (Y, Y) := Initial_SD_Position_XY**2;
-      This.P (Z, Z) := Initial_SD_Position_XY**2;
+      This.P (Z, Z) := Initial_SD_Position_Z**2;
 
-      This.P (Vx, Vx) := Initial_SD_Velocity**2;
-      This.P (Vy, Vy) := Initial_SD_Velocity**2;
-      This.P (Vz, Vz) := Initial_SD_Velocity**2;
+      This.P (Px, Px) := Initial_SD_Velocity**2;
+      This.P (Py, Py) := Initial_SD_Velocity**2;
+      This.P (Pz, Pz) := Initial_SD_Velocity**2;
 
       This.P (D0, D0) := Initial_SD_Roll_Pitch**2;
       This.P (D1, D1) := Initial_SD_Roll_Pitch**2;
@@ -121,6 +152,17 @@ package body Kalman_Core is
                         Space_Matrix'First (2));
       Old_P : constant Space_Matrix := This.P;
    begin
+      Data.Predict_Data_Index :=
+        Data.Data_Index'Succ (Data.Predict_Data_Index);
+      Data.Predict_Data (Data.Predict_Data_Index) :=
+        (Time      => Ada.Real_Time.Clock,
+         Core_Data => This,
+         Thrust    => Thrust,
+         Acc       => Acc,
+         Gyro      => Gyro,
+         Interval  => Interval,
+         Is_Flying => Is_Flying);
+
       if This.Reset_Estimation then
          Initialize (This, At_Time => Ada.Real_Time.Clock);
       end if;
@@ -130,77 +172,79 @@ package body Kalman_Core is
       This.Updated := True;
 
       --  Position from body-frame velocity
-      A (X, Vx) := This.R (0, 0) * Dt;
-      A (Y, Vx) := This.R (1, 0) * Dt;
-      A (Z, Vx) := This.R (2, 0) * Dt;
+      A (X, Px) := This.R (0, 0) * Dt;
+      A (Y, Px) := This.R (1, 0) * Dt;
+      A (Z, Px) := This.R (2, 0) * Dt;
 
-      A (X, Vy) := This.R (0, 1) * Dt;
-      A (Y, Vy) := This.R (1, 1) * Dt;
-      A (Z, Vy) := This.R (2, 1) * Dt;
+      A (X, Py) := This.R (0, 1) * Dt;
+      A (Y, Py) := This.R (1, 1) * Dt;
+      A (Z, Py) := This.R (2, 1) * Dt;
 
-      A (X, Vz) := This.R (0, 2) * Dt;
-      A (Y, Vz) := This.R (1, 2) * Dt;
-      A (Z, Vz) := This.R (2, 2) * Dt;
+      A (X, Pz) := This.R (0, 2) * Dt;
+      A (Y, Pz) := This.R (1, 2) * Dt;
+      A (Z, Pz) := This.R (2, 2) * Dt;
 
       --  Position from attitude error
       A (X, D0) :=
-        (This.S (Vy) * This.R (0, 2) - This.S (Vz) * This.R (0, 1))
+        (This.S (Py) * This.R (0, 2) - This.S (Pz) * This.R (0, 1))
            * Dt;
       A (Y, D0) :=
-        (This.S (Vy) * This.R (1, 2) - This.S (Vz) * This.R (1, 1))
+        (This.S (Py) * This.R (1, 2) - This.S (Pz) * This.R (1, 1))
            * Dt;
       A (Z, D0) :=
-        (This.S (Vy) * This.R (2, 2) - This.S (Vz) * This.R (2, 1))
+        (This.S (Py) * This.R (2, 2) - This.S (Pz) * This.R (2, 1))
            * Dt;
 
       A (X, D1) :=
-        (-This.S (Vx) * This.R (0, 2) + This.S (Vz) * This.R (0, 0))
+        (-This.S (Px) * This.R (0, 2) + This.S (Pz) * This.R (0, 0))
            * Dt;
       A (Y, D1) :=
-        (-This.S (Vx) * This.R (1, 2) + This.S (Vz) * This.R (1, 0))
+        (-This.S (Px) * This.R (1, 2) + This.S (Pz) * This.R (1, 0))
            * Dt;
       A (Z, D1) :=
-        (-This.S (Vx) * This.R (2, 2) + This.S (Vz) * This.R (2, 0))
+        (-This.S (Px) * This.R (2, 2) + This.S (Pz) * This.R (2, 0))
            * Dt;
 
       A (X, D2) :=
-        (This.S (Vx) * This.R (0, 1) - This.S (Vy) * This.R (0, 0))
+        (This.S (Px) * This.R (0, 1) - This.S (Py) * This.R (0, 0))
            * Dt;
       A (Y, D2) :=
-        (This.S (Vx) * This.R (1, 1) - This.S (Vy) * This.R (1, 0))
+        (This.S (Px) * This.R (1, 1) - This.S (Py) * This.R (1, 0))
            * Dt;
       A (Z, D2) :=
-        (This.S (Vx) * This.R (2, 1) - This.S (Vy) * This.R (2, 0))
+        (This.S (Px) * This.R (2, 1) - This.S (Py) * This.R (2, 0))
            * Dt;
 
       --  Body-frame velocity from body-frame velocity
-      A (Vx, Vx) := 1.0;  -- drag negligible
-      A (Vy, Vx) := -Gyro.Z * Dt;
-      A (Vz, Vx) := Gyro.Y * Dt;
+      A (Px, Px) := 1.0;  -- drag negligible
+      A (Py, Px) := -Gyro.Z * Dt;
+      A (Pz, Px) := Gyro.Y * Dt;
 
-      A (Vx, Vy) := Gyro.Z * Dt;
-      A (Vy, Vy) := 1.0;
-      A (Vz, Vy) := -Gyro.X * Dt;
+      A (Px, Py) := Gyro.Z * Dt;
+      A (Py, Py) := 1.0;
+      A (Pz, Py) := -Gyro.X * Dt;
 
-      A (Vx, Vz) := -Gyro.Y * Dt;
-      A (Vy, Vz) := Gyro.X * Dt;
-      A (Vz, Vz) := 1.0;
+      A (Px, Pz) := -Gyro.Y * Dt;
+      A (Py, Pz) := Gyro.X * Dt;
+      A (Pz, Pz) := 1.0;
 
       --  Body-frame velocity from attitude error
-      A (Vx, D0) := 0.0;
-      A (Vy, D0) := -G * This.R (2, 2) * Dt;
-      A (Vz, D0) := G * This.R (2, 1) * Dt;
+      A (Px, D0) := 0.0;
+      A (Py, D0) := -G * This.R (2, 2) * Dt;
+      A (Pz, D0) := G * This.R (2, 1) * Dt;
 
-      A (Vx, D1) := G * This.R (2, 2) * Dt;
-      A (Vy, D1) := 0.0;
-      A (Vz, D1) := -G * This.R (2, 0) * Dt;
+      A (Px, D1) := G * This.R (2, 2) * Dt;
+      A (Py, D1) := 0.0;
+      A (Pz, D1) := -G * This.R (2, 0) * Dt;
 
-      A (Vx, D2) := -G * This.R (2, 1) * Dt;
-      A (Vy, D2) := G * This.R (2, 0) * Dt;
-      A (Vz, D2) := 0.0;
+      A (Px, D2) := -G * This.R (2, 1) * Dt;
+      A (Py, D2) := G * This.R (2, 0) * Dt;
+      A (Pz, D2) := 0.0;
 
       --  Attitude error from attitude error
       declare
+         --  These variables are D0 etc in the C, but obvs we can't use
+         --  those names.
          G0 : constant Float := Gyro.X * Dt / 2.0;
          G1 : constant Float := Gyro.Y * Dt / 2.0;
          G2 : constant Float := Gyro.Z * Dt / 2.0;
@@ -239,14 +283,13 @@ package body Kalman_Core is
 
             --  Position updates in the body frame (will be rotated to
             --  inertial frame)
-            Dx : constant Float := This.S (Vx) * Dt;
-            Dy : constant Float := This.S (Vy) * Dt;
-            Dz : constant Float := This.S (Vz) * Dt + Z_Acc * Dt**2 / 2.0;
-
+            Dx : constant Float := This.S (Px) * Dt;
+            Dy : constant Float := This.S (Py) * Dt;
+            Dz : constant Float := This.S (Pz) * Dt + Z_Acc * Dt**2 / 2.0;
             --  Remember the old velocity for the update
-            Old_Vx : constant Float := This.S (Vx);
-            Old_Vy : constant Float := This.S (Vy);
-            Old_Vz : constant Float := This.S (Vz);
+            Old_Px : constant Float := This.S (Px);
+            Old_Py : constant Float := This.S (Py);
+            Old_Pz : constant Float := This.S (Pz);
          begin
             --  Position update (XXX in the inertial frame?)
             This.S (X) := This.S (X)
@@ -264,18 +307,18 @@ package body Kalman_Core is
 
             --  Body-velocity update: accelerometers - gyros cross
             --  velocity - gravity in body frame
-            This.S (Vx) := This.S (Vx)
-              + Dt * (Gyro.Z * Old_Vy
-                        - Gyro.Y * Old_Vz
+            This.S (Px) := This.S (Px)
+              + Dt * (Gyro.Z * Old_Py
+                        - Gyro.Y * Old_Pz
                         - G * This.R (2, 0));
-            This.S (Vy) := This.S (Vy)
-              + Dt * (-Gyro.Z * Old_Vx
-                        + Gyro.X * Old_Vz
+            This.S (Py) := This.S (Py)
+              + Dt * (-Gyro.Z * Old_Px
+                        + Gyro.X * Old_Pz
                         - G * This.R (2, 1));
-            This.S (Vz) := This.S (Vz)
+            This.S (Pz) := This.S (Pz)
               + Dt * (Z_Acc
-                        + Gyro.Y * Old_Vx
-                        - Gyro.X * Old_Vy
+                        + Gyro.Y * Old_Px
+                        - Gyro.X * Old_Py
                         - G * This.R (2, 2));
          end;
       else
@@ -285,13 +328,13 @@ package body Kalman_Core is
          --  the accelerometer. This occurs, eg. in freefall or
          --  while being carried.
          declare
-            Dx : constant Float := This.S (Vx) * Dt + Acc.X * Dt**2 / 2.0;
-            Dy : constant Float := This.S (Vy) * Dt + Acc.Y * Dt**2 / 2.0;
-            Dz : constant Float := This.S (Vz) * Dt + Acc.Z * Dt**2 / 2.0;
+            Dx : constant Float := This.S (Px) * Dt + Acc.X * Dt**2 / 2.0;
+            Dy : constant Float := This.S (Py) * Dt + Acc.Y * Dt**2 / 2.0;
+            Dz : constant Float := This.S (Pz) * Dt + Acc.Z * Dt**2 / 2.0;
             --  Remember the old velocity for the update
-            Old_Vx : constant Float := This.S (Vx);
-            Old_Vy : constant Float := This.S (Vy);
-            Old_Vz : constant Float := This.S (Vz);
+            Old_Px : constant Float := This.S (Px);
+            Old_Py : constant Float := This.S (Py);
+            Old_Pz : constant Float := This.S (Pz);
          begin
             --  Position update
             This.S (X) := This.S (X)
@@ -309,26 +352,24 @@ package body Kalman_Core is
 
             --  Body-velocity update: accelerometers - gyros cross
             --  velocity - gravity in body frame
-            This.S (Vx) := This.S (Vx)
+            This.S (Px) := This.S (Px)
               + Dt * (Acc.X
-                        + Gyro.Z * Old_Vy
-                        - Gyro.Y * Old_Vz
+                        + Gyro.Z * Old_Py
+                        - Gyro.Y * Old_Pz
                         - G * This.R (2, 0));
-            This.S (Vy) := This.S (Vy)
+            This.S (Py) := This.S (Py)
               + Dt * (Acc.Y
-                        - Gyro.Z * Old_Vx
-                        + Gyro.X * Old_Vz
+                        - Gyro.Z * Old_Px
+                        + Gyro.X * Old_Pz
                         - G * This.R (2, 1));
-            This.S (Vz) := This.S (Vz)
+            This.S (Pz) := This.S (Pz)
               + Dt * (Acc.Z
-                        + Gyro.Y * Old_Vx
-                        - Gyro.X * Old_Vy
+                        + Gyro.Y * Old_Px
+                        - Gyro.X * Old_Py
                         - G * This.R (2, 2));
          end;
       end if;
       pragma Assert (not Has_Nan (This));
-
-      --  CHECKED TO HERE (AGAIN)
 
       --  Attitude Update (rotate by gyroscope), we do this in
       --  quaternions.  This is the gyroscope angular velocity
@@ -357,10 +398,10 @@ package body Kalman_Core is
                  + Dq.W * This.Q.Y + Dq.X * This.Q.Z,
                Dq.Z * This.Q.W + Dq.Y * This.Q.X
                  - Dq.X * This.Q.Y + Dq.W * This.Q.Z);
-         ROLL_PITCH_REVERSION : constant := 0.001;
+         ROLL_PITCH_ZERO_REVERSION : constant := 0.001;
          --  Value, in kalman_core.c, if LPS_2D_POSITION_HEIGHT
          --  isn't defined
-         R : constant := ROLL_PITCH_REVERSION;
+         R : constant := ROLL_PITCH_ZERO_REVERSION;
          K : constant := 1.0 - R;
       begin
          if not Is_Flying then
@@ -394,34 +435,34 @@ package body Kalman_Core is
         := To_Duration (At_Time - This.Last_Process_Noise_Update_Time);
       Dt : constant Float := Float (Interval);
       Pn : Process_Noise_T renames Process_Noise;
-      Tmp : Float;
    begin
       pragma Assert (not Has_Nan (This));
       This.Last_Process_Noise_Update_Time := At_Time;
 
-      Tmp := (Pn.Acc_X_Y * Dt**2 + Pn.Vel * Dt + Pn.Pos)**2;
-      This.P (X, X) := This.P (X, X) + Tmp;
-      This.P (Y, Y) := This.P (Y, Y) + Tmp;
-      This.P (Z, Z) := This.P (Z, Z) + Tmp;
+      This.P (X, X) := This.P (X, X)
+        + (Pn.Acc_X_Y * Dt**2 + Pn.Vel * Dt + Pn.Pos)**2;
+      This.P (Y, Y) := This.P (Y, Y)
+        + (Pn.Acc_X_Y * Dt**2 + Pn.Vel * Dt + Pn.Pos)**2;
+      This.P (Z, Z) := This.P (Z, Z)
+        + (Pn.Acc_Z * Dt**2 + Pn.Vel * Dt + Pn.Pos)**2;
 
-      Tmp := (Pn.Acc_X_Y * Dt + Pn.Vel)**2;
-      This.P (Vx, Vx) := This.P (Vx, Vx) + Tmp;
-      This.P (Vy, Vy) := This.P (Vy, Vy) + Tmp;
-      This.P (Vz, Vz) := This.P (Vz, Vz) + Tmp;
+      This.P (Px, Px) := This.P (Px, Px) + (Pn.Acc_X_Y * Dt + Pn.Vel)**2;
+      This.P (Py, Py) := This.P (Py, Py) + (Pn.Acc_X_Y * Dt + Pn.Vel)**2;
+      This.P (Pz, Pz) := This.P (Pz, Pz) + (Pn.Acc_Z * Dt + Pn.Vel)**2;
 
-      Tmp := (Pn.Gyro_Roll_Pitch * Dt + Pn.Att)**2;
-      This.P (D0, D0) := This.P (D0, D0) + Tmp;
-      This.P (D1, D1) := This.P (D1, D1) + Tmp;
-
-      Tmp := (Pn.Gyro_Yaw * Dt + Pn.Att)**2;
-      This.P (D2, D2) := This.P (D1, D1) + Tmp;
+      This.P (D0, D0) := This.P (D0, D0)
+        + (Pn.Gyro_Roll_Pitch * Dt + Pn.Att)**2;
+      This.P (D1, D1) := This.P (D1, D1)
+        + (Pn.Gyro_Roll_Pitch * Dt + Pn.Att)**2;
+      This.P (D2, D2) := This.P (D1, D1)
+        + (Pn.Gyro_Yaw * Dt + Pn.Att)**2;
 
       --  Enforce symmetry of the covariance matrix, and ensure the
       --  values stay bounded
       for R in This.P'Range (1) loop
          for C in This.P'Range (2) loop
             declare
-               P : constant Float := 0.5 * (This.P (R, C) + This.P (C, R));
+               P : constant Float := (This.P (R, C) + This.P (C, R)) / 2.0;
             begin
                if Is_Nan (P) or else P > Max_Covariance then
                   This.P (R, C) := Max_Covariance;
@@ -521,8 +562,8 @@ package body Kalman_Core is
             end;
          end loop;
       end loop;
-      pragma Assert (not Has_Nan (This));  -- could this happen?
 
+      pragma Assert (not Has_Nan (This));  -- could this happen?
    end Scalar_Update;
 
    procedure Update_With_Baro (This      : in out Core;
@@ -557,45 +598,52 @@ package body Kalman_Core is
       --  Camera constants
       --  Maybe to do with aperture?
       Npix : constant := 30.0;
-      Thetapix : constant :=  4.0 * Degrees_To_Radians;
+      Thetapix : constant :=  4.2 * Degrees_To_Radians;
       Omega_Factor : constant := 1.25;
       --  Body rates
       Omegax_B : constant Float := Gyro.X * Degrees_To_Radians;
       Omegay_B : constant Float := Gyro.Y * Degrees_To_Radians;
       --  Global rates
-      Dx_G : constant Float := This.S (Vx);
-      Dy_G : constant Float := This.S (Vy);
+      Dx_G : constant Float := This.S (Px);
+      Dy_G : constant Float := This.S (Py);
       Z_G : constant Float := Float'Max (This.S (Z), 0.1);
    begin
+      Data.Flow_Data_Index := Data.Data_Index'Succ (Data.Flow_Data_Index);
+      Data.Flow_Data (Data.Flow_Data_Index) :=
+        (Time => Ada.Real_Time.Clock,
+         Flow => Flow,
+         Gyro => Gyro);
+
       This.Updated := True;
       --  X velocity prediction and update
       declare
          Predicted_Nx : constant Float
-           := Flow.Dt * Npix / Thetapix
+           := (Flow.Dt * Npix / Thetapix)
              * ((Dx_G * This.R (2, 2) / Z_G) - Omega_Factor * Omegay_B);
       begin
          Scalar_Update
            (This               => This,
             Measurement_Vector =>
-              (Z => -Flow.Dt * Npix / Thetapix * This.R (2, 2) * Dx_G / Z_G**2,
-               Vx => Flow.Dt * Npix / Thetapix * This.R (2, 2) / Z_G,
+              (Z =>  (Npix * Flow.Dt / Thetapix) * ((This.R (2, 2) * Dx_G)
+                                                     / (-Z_G**2)),
+               Px => (Npix * Flow.Dt / Thetapix) * (This.R (2, 2) / Z_G),
                others => 0.0),
-            Error              =>
-              (Flow.Dx - Predicted_Nx),
+            Error              => (Flow.Dx - Predicted_Nx),
             Standard_Deviation => Flow.Standard_Deviation_X);
          pragma Assert (not Has_Nan (This));
       end;
       --  Y velocity prediction and update
       declare
          Predicted_Ny : constant Float
-           := Flow.Dt * Npix / Thetapix
-             * ((Dy_G * This.R (2, 2) / Z_G) - Omega_Factor * Omegax_B);
+           := (Flow.Dt * Npix / Thetapix)
+             * ((Dy_G * This.R (2, 2) / Z_G) + Omega_Factor * Omegax_B);
       begin
          Scalar_Update
            (This               => This,
             Measurement_Vector =>
-              (Z => -Flow.Dt * Npix / Thetapix * This.R (2, 2) * Dy_G / Z_G**2,
-               Vy => Flow.Dt * Npix / Thetapix * This.R (2, 2) / Z_G,
+              (Z => (Npix * Flow.Dt / Thetapix) * ((This.R (2, 2) * Dy_G)
+                                                     / (-Z_G**2)),
+               Py => (Npix * Flow.Dt / Thetapix) * This.R (2, 2) / Z_G,
                others => 0.0),
             Error              =>
               (Flow.Dy - Predicted_Ny),
@@ -610,8 +658,14 @@ package body Kalman_Core is
    is
       Z_Scale : Float renames This.R (2, 2);
    begin
+      Data.Tof_Data_Index := Data.Data_Index'Succ (Data.Tof_Data_Index);
+      Data.Tof_Data (Data.Tof_Data_Index) :=
+        (Time => Ada.Real_Time.Clock,
+         ToF  => ToF);
+
       --  Only update the filter if the measurement is reliable.
-      if Z_Scale in 0.1 .. 1.0 then
+      --  Not the same algorithm as the C, but the same effect
+      if abs Z_Scale > 0.1 then
          This.Updated := True;
          declare
             Predicted_Distance : constant Float := This.S (Z) / Z_Scale;
@@ -658,8 +712,8 @@ package body Kalman_Core is
                     + Dq.Z * This.Q.Y - Dq.Y * This.Q.Z,
                   Dq.Y * This.Q.W - Dq.Z * This.Q.X
                     + Dq.W * This.Q.Y + Dq.X * This.Q.Z,
-                  Dq.Z * This.Q.W - Dq.Y * This.Q.X
-                    + Dq.X * This.Q.Y + Dq.W * This.Q.Z);
+                  Dq.Z * This.Q.W + Dq.Y * This.Q.X
+                    - Dq.X * This.Q.Y + Dq.W * This.Q.Z);
             --  Normalize and store the result
             Norm : constant Float
               := Sqrt (Tq.W**2 + Tq.X**2 + Tq.Y**2 + Tq.Z**2);
@@ -677,6 +731,7 @@ package body Kalman_Core is
               := Unit_Matrix (Space_Matrix'Length (1),
                               Space_Matrix'First (1),
                               Space_Matrix'First (2));
+            --  These variables are D0 etc in the C.
             H0 : constant Float := V0 / 2.0;
             H1 : constant Float := V1 / 2.0;
             H2 : constant Float := V2 / 2.0;
@@ -741,7 +796,7 @@ package body Kalman_Core is
       for R in This.P'Range (1) loop
          for C in This.P'Range (2) loop
             declare
-               P : constant Float := 0.5 * (This.P (R, C) + This.P (C, R));
+               P : constant Float := (This.P (R, C) + This.P (C, R)) / 2.0;
             begin
                if Is_Nan (P) or else P > Max_Covariance then
                   This.P (R, C) := Max_Covariance;
@@ -761,6 +816,11 @@ package body Kalman_Core is
       if not State_Is_Within_Bounds (This) then
          This.Reset_Estimation := True;
       end if;
+
+      Data.Final_Data_Index := Data.Data_Index'Succ (Data.Final_Data_Index);
+      Data.Final_Data (Data.Final_Data_Index) :=
+        (Time => Ada.Real_Time.Clock,
+         Data => This);
    end Finalize;
 
    function State_Is_Within_Bounds (This : Core) return Boolean
@@ -770,7 +830,7 @@ package body Kalman_Core is
       Pos, Vel : Boolean;
    begin
       Pos := (for all P in X .. Z   => abs This.S (P) < Max_Position);
-      Vel := (for all V in Vx .. Vz => abs This.S (V) < Max_Velocity);
+      Vel := (for all V in Px .. Pz => abs This.S (V) < Max_Velocity);
       return Pos and Vel;
    end State_Is_Within_Bounds;
 
@@ -786,9 +846,9 @@ package body Kalman_Core is
       --  timestamps actually do any good in either Kalman or
       --  SensFusion6 algorithms.
 
+      Q : Quaternion  renames This.Q;
       R : Real_Matrix renames This.R;
       S : Real_Vector renames This.S;
-      Q : Quaternion  renames This.Q;
    begin
       pragma Assert (not Has_Nan (This));
 
@@ -799,9 +859,9 @@ package body Kalman_Core is
       --  world frame
       State.Vel :=
         (Timestamp => 0,
-         X => R (0, 0) * S (Vx) + R (0, 1) * S (Vy) + R (0, 2) * S (Vz),
-         Y => R (1, 0) * S (Vx) + R (1, 1) * S (Vy) + R (1, 2) * S (Vz),
-         Z => R (2, 0) * S (Vx) + R (2, 1) * S (Vy) + R (2, 2) * S (Vz));
+         X => R (0, 0) * S (Px) + R (0, 1) * S (Py) + R (0, 2) * S (Pz),
+         Y => R (1, 0) * S (Px) + R (1, 1) * S (Py) + R (1, 2) * S (Pz),
+         Z => R (2, 0) * S (Px) + R (2, 1) * S (Py) + R (2, 2) * S (Pz));
 
       --  Accelerometer measurements are in the body frame and need
       --  to be rotated to world frame.
@@ -813,9 +873,9 @@ package body Kalman_Core is
       --  in m/s^2, hence - 1 for removing gravity
       State.Acc :=
         (Timestamp => 0,
-         X => (R (0, 0) * Acc.X + R (0, 1) * Acc.Y + R (0, 2) * Acc.Z) / G,
-         Y => (R (1, 0) * Acc.X + R (1, 1) * Acc.Y + R (1, 2) * Acc.Z) / G,
-         Z => (R (2, 0) * Acc.X + R (2, 1) * Acc.Y + R (2, 2) * Acc.Z) / G
+         X => (R (0, 0) * Acc.X + R (0, 1) * Acc.Y + R (0, 2) * Acc.Z),
+         Y => (R (1, 0) * Acc.X + R (1, 1) * Acc.Y + R (1, 2) * Acc.Z),
+         Z => (R (2, 0) * Acc.X + R (2, 1) * Acc.Y + R (2, 2) * Acc.Z)
            - 1.0);
 
       --  Convert the new attitude into Euler YPR

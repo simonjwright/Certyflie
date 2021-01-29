@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------------
 --                              Certyflie                                   --
 --                                                                          --
---        Copyright (C) 2020, Simon Wright <simon@pushface.org>             --
+--      Copyright (C) 2020-2021, Simon Wright <simon@pushface.org>          --
 --                                                                          --
 --  This library is free software;  you can redistribute it and/or modify   --
 --  it under terms of the  GNU General Public License  as published by the  --
@@ -81,8 +81,8 @@ package body Flow_Deck is
    --  procedure Init_Logging;
    procedure Init_Parameters;
 
-   procedure Init_Flow_Sensor (Success : out Boolean);
-   procedure Init_ToF_Sensor (Success : out Boolean);
+   function Init_Flow_Sensor return Boolean;
+   function Init_ToF_Sensor return Boolean;
 
    --  For debug
    procedure Put_Line (S : String);
@@ -99,8 +99,8 @@ package body Flow_Deck is
    begin
       --  Init_Logging;
       Init_Parameters;
-      Init_Flow_Sensor (Flow_Sensor_Initialized);
-      Init_ToF_Sensor (ToF_Sensor_Initialized);
+      Flow_Sensor_Initialized := Init_Flow_Sensor;
+      ToF_Sensor_Initialized := Init_ToF_Sensor;
 
       --  Only start processing if both sensors started OK
       if Flow_Sensor_Initialized and ToF_Sensor_Initialized then
@@ -160,24 +160,27 @@ package body Flow_Deck is
           Speed       => STM32.GPIO.Speed_50MHz));
    end Configure_EXT_CS;
 
-   procedure Init_Flow_Sensor (Success : out Boolean) is
+   function Init_Flow_Sensor return Boolean is
+      Success : Boolean;
    begin
       Initialize_EXT_SPI;
       Configure_EXT_CS (STM32.Board.EXT_CS1);
 
       PMW3901.Initialize (Flow_Sensor);
       Success := PMW3901.Is_Initialized (Flow_Sensor);
-      if not Success then
+      if Success then
+         PMW3901.Calibrate (Flow_Sensor);
+      else
          Put_Line ("pwm3901 failed");
-         return;
       end if;
 
-      PMW3901.Calibrate (Flow_Sensor);
+      return Success;
    end Init_Flow_Sensor;
 
-   procedure Init_ToF_Sensor (Success : out Boolean) is
+   function Init_ToF_Sensor return Boolean is
       ID : HAL.UInt16;
       Revision : HAL.UInt8;
+      Success : Boolean;
 
       use HAL;
    begin
@@ -192,13 +195,13 @@ package body Flow_Deck is
       Success := ID = 16#eeaa# and Revision = 16#10#;
       if not Success then
          Put_Line ("vl53l0x not recognised");
-         return;
+         return False;
       end if;
 
       VL53L0X.Data_Init (ToF_Sensor, Success);
       if not Success then
          Put_Line ("vl53l0x data init failed");
-         return;
+         return False;
       end if;
 
       VL53L0X.Static_Init (ToF_Sensor,
@@ -206,7 +209,7 @@ package body Flow_Deck is
                            Status => Success);
       if not Success then
          Put_Line ("vl53l0x static init failed");
-         return;
+         return False;
       end if;
 
       VL53L0X.Set_VCSEL_Pulse_Period_Pre_Range (ToF_Sensor,
@@ -214,7 +217,7 @@ package body Flow_Deck is
                                                 Status => Success);
       if not Success then
          Put_Line ("vl53l0x set pre range failed");
-         return;
+         return False;
       end if;
 
       VL53L0X.Set_VCSEL_Pulse_Period_Final_Range (ToF_Sensor,
@@ -222,16 +225,17 @@ package body Flow_Deck is
                                                   Status => Success);
       if not Success then
          Put_Line ("vl53l0x set final range failed");
-         return;
+         return False;
       end if;
 
       VL53L0X.Perform_Ref_Calibration (ToF_Sensor,
                                        Status => Success);
       if not Success then
          Put_Line ("vl53l0x ref calibration failed");
-         return;
+         return False;
       end if;
 
+      return True;
    end Init_ToF_Sensor;
 
    ------------------
@@ -258,6 +262,10 @@ package body Flow_Deck is
    task body Flow_Sensor_Task is
       Outlier_Limit : constant := 100;
       M : PMW3901.Motion;
+      Measurement_Time : Ada.Real_Time.Time;
+      First_Measurement : Boolean := True;
+      Last_Measurement_Time : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
+      --  (to avoid warnings below)
       use type Ada.Real_Time.Time;
       use type Interfaces.Integer_16;
    begin
@@ -265,9 +273,11 @@ package body Flow_Deck is
       Put_Line ("Flow_Sensor_Task started");
       loop
          M := PMW3901.Read_Motion (Flow_Sensor);
+         Measurement_Time := Ada.Real_Time.Clock;
          --  Last_Motion := M; -- for logging
-         if PMW3901.Is_Valid (M) then
-            if abs M.Delta_X < Outlier_Limit
+         if not First_Measurement then
+            if PMW3901.Is_Valid (M)
+              and then abs M.Delta_X < Outlier_Limit
               and then abs M.Delta_Y < Outlier_Limit
             then
                --  Provide the current measurement, flipping to
@@ -279,11 +289,32 @@ package body Flow_Deck is
                      Dy                   => Float (-M.Delta_X),
                      Standard_Deviation_X => 0.25,
                      Standard_Deviation_Y => 0.25,
-                     Dt                   => 0.01));
+                     Dt                   =>
+                       Float
+                         (Ada.Real_Time.To_Duration
+                            (Measurement_Time - Last_Measurement_Time))));
+            else
+               --  Provide a dummy measurement with zero movement
+               --  valvalues & large SD; providing no values causes
+               --  the X, Y values in the filter to increase without
+               --  limit.
+               Estimators.Current_Estimator.Enqueue
+                 (Stabilizer_Types.Flow_Measurement'
+                    (Timestamp            => Ada.Real_Time.Clock,
+                     Dx                   => 0.0,
+                     Dy                   => 0.0,
+                     Standard_Deviation_X => 2.5,
+                     Standard_Deviation_Y => 2.5,
+                     Dt                   =>
+                       Float
+                         (Ada.Real_Time.To_Duration
+                            (Measurement_Time - Last_Measurement_Time))));
             end if;
-
          end if;
-         delay until Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (10);
+         First_Measurement := False;
+
+         Last_Measurement_Time := Measurement_Time;
+         delay until Ada.Real_Time.Clock + Ada.Real_Time.Milliseconds (25);
       end loop;
    end Flow_Sensor_Task;
 

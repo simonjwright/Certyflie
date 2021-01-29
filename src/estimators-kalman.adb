@@ -12,7 +12,7 @@ package body Estimators.Kalman is
    task Kalman_Task
      with
        Priority             => Config.KALMAN_TASK_PRIORITY,
-       Secondary_Stack_Size => 5120; -- XXX guess
+       Secondary_Stack_Size => 3 * 1024;
 
    --  There's a little dance to communicate with the task.
 
@@ -244,10 +244,9 @@ package body Estimators.Kalman is
             Kalman_Core.Finalize (This.Core);
 
             Kalman_Core.Externalize_State (This.Core,
-                                           State => State,
-                                           Acc => Sensors.Acc,
+                                           State   => State,
+                                           Acc     => Sensors.Acc,
                                            At_Time => Now);
-            --  do hairy stuff
 
             Updated_State.Put (State);
          end loop;
